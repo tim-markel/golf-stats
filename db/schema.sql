@@ -183,8 +183,8 @@ CREATE TABLE hole_weed (
 );
 
 -- ---------------------------------------------------------------------------
--- beer_options  (catalog of beers; seeded with popular picks, grows as users
---                add their own via the "other" option during round entry)
+-- beer_options  (catalog of beers; populated at runtime — grows as users pick
+--                the "other" option during round entry. No seed data here.)
 -- ---------------------------------------------------------------------------
 CREATE TABLE beer_options (
     beer_id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -193,23 +193,6 @@ CREATE TABLE beer_options (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Seed with popular choices (idempotent).
-INSERT INTO beer_options (name, abv) VALUES
-    ('Bud Light', 4.2),
-    ('Coors Light', 4.2),
-    ('Miller Lite', 4.2),
-    ('Michelob Ultra', 4.2),
-    ('Budweiser', 5.0),
-    ('Corona Extra', 4.6),
-    ('Modelo Especial', 4.4),
-    ('Pacifico', 4.4),
-    ('Heineken', 5.0),
-    ('Stella Artois', 5.0),
-    ('Guinness Draught', 4.2),
-    ('Truly Hard Seltzer', 5.0),
-    ('White Claw', 5.0)
-ON CONFLICT (name) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- hole_beer  (beers consumed on a hole — name (via beer_id) + size; many/hole)

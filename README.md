@@ -171,6 +171,44 @@ erDiagram
     }
 ```
 
+### Where the database lives
+
+The repo only contains the schema (`db/schema.sql`) — **not** the database
+itself. The live data is stored by your local PostgreSQL server, not as a file
+in this project. On this machine (Homebrew Postgres 14):
+
+| Detail | Value |
+| --- | --- |
+| Database name | `golf_stats` |
+| Server data directory | `/opt/homebrew/var/postgresql@14` (server-managed; don't edit by hand) |
+| Host / Port | `localhost` / `5432` |
+| User | `timmarkel` (local trust auth — no password) |
+
+Create it from scratch (e.g. on a new machine):
+
+```bash
+brew services start postgresql@14     # start the server
+createdb golf_stats                   # create the database
+psql golf_stats -f db/schema.sql      # apply the schema
+```
+
+Quick CLI access: `psql golf_stats` (then `\dt` to list tables).
+
+### Viewing the data in Postico
+
+1. Make sure the server is running: `brew services start postgresql@14`.
+2. Open **Postico** → **New Server / New Favorite**.
+3. Enter:
+   - **Nickname:** `golf-stats` (anything)
+   - **Host:** `localhost`
+   - **Port:** `5432`
+   - **User:** `timmarkel`
+   - **Password:** *(leave blank — local trust auth)*
+   - **Database:** `golf_stats`
+4. Click **Connect**. You'll see the tables (`courses`, `golfers`, `rounds`,
+   `beer_options`, …) in the left sidebar; click one to browse rows, and use the
+   SQL Query tab for ad-hoc queries.
+
 ## Course scraper
 
 The `scraper/` package is the course-data ingestion tool. You give it a course
