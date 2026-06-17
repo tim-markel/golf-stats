@@ -16,21 +16,21 @@ def save_course(database_url: str, course: CourseData, source_urls: list[str]) -
             cur.execute(
                 """
                 INSERT INTO courses (
-                    name, city, region, country, latitude, longitude,
+                    name, city, country,
                     holes_count, par, architect, year_built, website, phone,
                     data_source, source_url, scraped_at
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s,
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, now()
                 )
                 RETURNING id
                 """,
                 (
-                    course.name, course.city, course.region, course.country,
-                    course.latitude, course.longitude, course.holes_count,
-                    course.par, course.architect, course.year_built,
-                    course.website, course.phone, data_source, source_url,
+                    course.name, course.city, course.country,
+                    course.holes_count, course.par, course.architect,
+                    course.year_built, course.website, course.phone,
+                    data_source, source_url,
                 ),
             )
             course_id = cur.fetchone()[0]
@@ -41,13 +41,13 @@ def save_course(database_url: str, course: CourseData, source_urls: list[str]) -
                 cur.execute(
                     """
                     INSERT INTO tees (
-                        course_id, name, gender, par, total_yards,
+                        course_id, name, par, total_yards,
                         course_rating, slope_rating
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     (
-                        course_id, tee.name, tee.gender or "M", tee.par,
+                        course_id, tee.name, tee.par,
                         tee.total_yards, tee.course_rating, tee.slope_rating,
                     ),
                 )

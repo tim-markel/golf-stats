@@ -36,7 +36,6 @@ class TeeData(BaseModel):
     """A tee set at the course (Black/Blue/White/Red, etc.)."""
 
     name: str = Field(description="Tee name, e.g. 'Blue'.")
-    gender: str = Field(default="M", description="'M', 'F', or 'U' (unisex).")
     par: Optional[int] = Field(default=None, description="Total par played from this tee.")
     total_yards: Optional[int] = Field(default=None, description="Total yardage from this tee.")
     course_rating: Optional[float] = Field(default=None, description="USGA course rating, e.g. 74.7.")
@@ -48,10 +47,7 @@ class CourseData(BaseModel):
 
     name: str = Field(description="Official course name.")
     city: Optional[str] = None
-    region: Optional[str] = Field(default=None, description="State or province.")
     country: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     holes_count: int = Field(default=18, description="Number of holes (9, 18, 27).")
     par: Optional[int] = Field(default=None, description="Total par for the course.")
     architect: Optional[str] = None

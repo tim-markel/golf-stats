@@ -23,10 +23,7 @@ CREATE TABLE courses (
     name            TEXT        NOT NULL,            -- "Pebble Beach Golf Links"
     -- location
     city            TEXT,
-    region          TEXT,                            -- state / province
     country         TEXT,
-    latitude        DOUBLE PRECISION,
-    longitude       DOUBLE PRECISION,
     -- summary attributes
     holes_count     SMALLINT    NOT NULL DEFAULT 18, -- 9, 18, 27, ...
     par             SMALLINT,                         -- total par for the course
@@ -50,9 +47,6 @@ CREATE TABLE tees (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     course_id       BIGINT      NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
     name            TEXT        NOT NULL,            -- "Black", "Blue", "Championship"
-    color           TEXT,                            -- optional display color
-    gender          CHAR(1)     NOT NULL DEFAULT 'M' -- 'M', 'F', 'U' (unisex)
-                        CHECK (gender IN ('M', 'F', 'U')),
     par             SMALLINT,                         -- total par played from this tee
     total_yards     INTEGER,                          -- total yardage from this tee
     -- USGA-style ratings (per 18; store 9-hole sub-ratings separately if needed)
@@ -61,7 +55,7 @@ CREATE TABLE tees (
     bogey_rating    NUMERIC(4,1),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (course_id, name, gender)
+    UNIQUE (course_id, name)
 );
 
 -- ---------------------------------------------------------------------------
@@ -94,12 +88,113 @@ CREATE TABLE hole_tees (
 );
 
 -- ---------------------------------------------------------------------------
+-- golfers  (a person whose game is being tracked)
+-- ---------------------------------------------------------------------------
+CREATE TABLE golfers (
+    golfer_id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name            TEXT        NOT NULL,
+    handicap        NUMERIC(3,1),                     -- handicap index, e.g. 12.4
+    ghin_id         TEXT        UNIQUE,               -- GHIN number (unique per golfer)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
+-- rounds  (one round of golf a golfer played at a course)
+-- ---------------------------------------------------------------------------
+CREATE TABLE rounds (
+    round_id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    golfer_id       BIGINT      NOT NULL REFERENCES golfers (golfer_id) ON DELETE CASCADE,
+    course_id       BIGINT      NOT NULL REFERENCES courses (id)        ON DELETE RESTRICT,
+    -- recommended: which tees were played — needed to interpret yardages and
+    -- to compute a score differential. Nullable so it's optional for now.
+    tee_id          BIGINT      REFERENCES tees (id)  ON DELETE SET NULL,
+    played_on       DATE        NOT NULL,             -- date the round was played
+    time_of_day     TEXT        CHECK (time_of_day IN ('morning', 'afternoon', 'twilight')),
+    round_duration  INTERVAL,                         -- how long the round took, e.g. '4:15'
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
+-- hole_stats  (how a golfer played one hole in one round)
+--
+-- This is the per-hole, per-round grain — the source of truth for all stats.
+-- It joins to `holes` (for par / stroke index). Round-level numbers are
+-- AGGREGATED from here (see the round_stats view below), never stored
+-- separately, so they can't drift. Multi-valued vices (nicotine, weed) live in
+-- their own child tables; hazards are a constrained array since a hole can hit
+-- more than one.
+-- ---------------------------------------------------------------------------
+CREATE TABLE hole_stats (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    round_id        BIGINT      NOT NULL REFERENCES rounds (round_id) ON DELETE CASCADE,
+    hole_id         BIGINT      NOT NULL REFERENCES holes  (id)       ON DELETE RESTRICT,
+
+    score           SMALLINT    CHECK (score >= 1),         -- score on the hole
+    putts           SMALLINT    CHECK (putts >= 0),
+
+    -- Driving accuracy: par 4s & 5s only (enforce NULL on par 3 in app code).
+    driving_accuracy TEXT CHECK (driving_accuracy IN
+                         ('fairway', 'left', 'right', 'short', 'long')),
+    gir             BOOLEAN,                                -- green in regulation
+    approach_accuracy TEXT CHECK (approach_accuracy IN
+                         ('short', 'long', 'left', 'right', 'on')),
+    up_and_down     BOOLEAN,
+
+    -- Penalty stroke: NULL = none; otherwise where it happened (the y/n + where).
+    penalty_stroke  TEXT CHECK (penalty_stroke IN ('off_tee', 'approach')),
+
+    -- Hazards hit on the hole; empty array = none. A hole can hit several.
+    hazards_hit     TEXT[]      NOT NULL DEFAULT '{}'
+                        CHECK (hazards_hit <@ ARRAY['water', 'bunker', 'natural_area']),
+
+    balls_lost      SMALLINT    NOT NULL DEFAULT 0 CHECK (balls_lost >= 0),
+    beers_finished  SMALLINT    NOT NULL DEFAULT 0 CHECK (beers_finished >= 0),
+
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (round_id, hole_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- hole_nicotine  (nicotine consumed on a hole — type + number; many per hole)
+-- ---------------------------------------------------------------------------
+CREATE TABLE hole_nicotine (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    hole_stat_id    BIGINT      NOT NULL REFERENCES hole_stats (id) ON DELETE CASCADE,
+    -- edit the allowed set to taste:
+    type            TEXT        NOT NULL CHECK (type IN
+                         ('cigarette', 'cigar', 'vape', 'dip', 'pouch', 'gum')),
+    quantity        SMALLINT    NOT NULL DEFAULT 1 CHECK (quantity >= 1)
+);
+
+-- ---------------------------------------------------------------------------
+-- hole_weed  (weed consumed on a hole — type + amount; many per hole)
+-- ---------------------------------------------------------------------------
+CREATE TABLE hole_weed (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    hole_stat_id    BIGINT      NOT NULL REFERENCES hole_stats (id) ON DELETE CASCADE,
+    -- edit the allowed set to taste:
+    type            TEXT        NOT NULL CHECK (type IN
+                         ('joint', 'blunt', 'bowl', 'vape', 'dab', 'edible')),
+    amount          NUMERIC(6,2),                           -- quantity in `unit`
+    unit            TEXT        CHECK (unit IN ('g', 'mg', 'hits'))
+);
+
+-- ---------------------------------------------------------------------------
 -- indexes
 -- ---------------------------------------------------------------------------
 CREATE INDEX idx_tees_course      ON tees      (course_id);
 CREATE INDEX idx_holes_course     ON holes     (course_id);
 CREATE INDEX idx_hole_tees_hole   ON hole_tees (hole_id);
 CREATE INDEX idx_hole_tees_tee    ON hole_tees (tee_id);
+CREATE INDEX idx_rounds_golfer    ON rounds    (golfer_id);
+CREATE INDEX idx_rounds_course    ON rounds    (course_id);
+CREATE INDEX idx_hole_stats_round ON hole_stats    (round_id);
+CREATE INDEX idx_hole_stats_hole  ON hole_stats    (hole_id);
+CREATE INDEX idx_hole_nicotine    ON hole_nicotine (hole_stat_id);
+CREATE INDEX idx_hole_weed        ON hole_weed     (hole_stat_id);
 
 -- ---------------------------------------------------------------------------
 -- keep updated_at fresh on UPDATE (Postgres)
@@ -117,6 +212,31 @@ CREATE TRIGGER trg_tees_updated    BEFORE UPDATE ON tees
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_holes_updated   BEFORE UPDATE ON holes
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_golfers_updated BEFORE UPDATE ON golfers
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_rounds_updated  BEFORE UPDATE ON rounds
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_hole_stats_updated BEFORE UPDATE ON hole_stats
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- round_stats  (round-level totals derived from hole_stats; not a stored table)
+-- ---------------------------------------------------------------------------
+CREATE VIEW round_stats AS
+SELECT
+    hs.round_id,
+    COUNT(*)                                                  AS holes_played,
+    SUM(hs.score)                                             AS total_score,
+    SUM(hs.putts)                                             AS total_putts,
+    COUNT(*) FILTER (WHERE hs.gir)                            AS greens_in_reg,
+    COUNT(*) FILTER (WHERE hs.driving_accuracy = 'fairway')   AS fairways_hit,
+    COUNT(*) FILTER (WHERE hs.driving_accuracy IS NOT NULL)   AS driving_holes,
+    COUNT(*) FILTER (WHERE hs.up_and_down)                    AS up_and_downs,
+    COUNT(*) FILTER (WHERE hs.penalty_stroke IS NOT NULL)     AS penalty_holes,
+    SUM(hs.balls_lost)                                        AS balls_lost,
+    SUM(hs.beers_finished)                                    AS beers_finished
+FROM hole_stats hs
+GROUP BY hs.round_id;
 
 -- ===========================================================================
 -- Portability notes
