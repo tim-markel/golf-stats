@@ -1,0 +1,129 @@
+-- golf-stats :: data model for courses and holes
+-- Dialect: PostgreSQL (notes for SQLite are inline where they differ).
+--
+-- Modeling decisions
+-- ------------------
+-- A golf course has one or more *tee sets* (Black/Blue/White/Red, etc.). The
+-- things that vary by tee are yardage and rating/slope. Par and the stroke
+-- index (hole difficulty rank, 1-18) are properties of the *hole* and are the
+-- same regardless of which tee you play. So:
+--
+--   courses (1) ──< tees       (per-course set of tees, each with rating/slope)
+--   courses (1) ──< holes      (per-course hole: number, par, stroke index)
+--   holes   (1) ──< hole_tees  (yardage for a given hole from a given tee)
+--   tees    (1) ──< hole_tees
+--
+-- hole_tees is the junction of holes x tees and is where yardage lives.
+
+-- ---------------------------------------------------------------------------
+-- courses
+-- ---------------------------------------------------------------------------
+CREATE TABLE courses (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name            TEXT        NOT NULL,            -- "Pebble Beach Golf Links"
+    -- location
+    city            TEXT,
+    region          TEXT,                            -- state / province
+    country         TEXT,
+    latitude        DOUBLE PRECISION,
+    longitude       DOUBLE PRECISION,
+    -- summary attributes
+    holes_count     SMALLINT    NOT NULL DEFAULT 18, -- 9, 18, 27, ...
+    par             SMALLINT,                         -- total par for the course
+    architect       TEXT,
+    year_built      SMALLINT,
+    website         TEXT,
+    phone           TEXT,
+    -- provenance (populated by the scraping agent)
+    data_source     TEXT,                            -- which site/API it came from
+    source_url      TEXT,
+    scraped_at      TIMESTAMPTZ,
+    -- bookkeeping
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
+-- tees  (a tee set at a course, e.g. "Blue")
+-- ---------------------------------------------------------------------------
+CREATE TABLE tees (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    course_id       BIGINT      NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+    name            TEXT        NOT NULL,            -- "Black", "Blue", "Championship"
+    color           TEXT,                            -- optional display color
+    gender          CHAR(1)     NOT NULL DEFAULT 'M' -- 'M', 'F', 'U' (unisex)
+                        CHECK (gender IN ('M', 'F', 'U')),
+    par             SMALLINT,                         -- total par played from this tee
+    total_yards     INTEGER,                          -- total yardage from this tee
+    -- USGA-style ratings (per 18; store 9-hole sub-ratings separately if needed)
+    course_rating   NUMERIC(4,1),                     -- e.g. 74.7
+    slope_rating    SMALLINT CHECK (slope_rating BETWEEN 55 AND 155),
+    bogey_rating    NUMERIC(4,1),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (course_id, name, gender)
+);
+
+-- ---------------------------------------------------------------------------
+-- holes  (one row per hole per course; par + difficulty live here)
+-- ---------------------------------------------------------------------------
+CREATE TABLE holes (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    course_id       BIGINT      NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+    hole_number     SMALLINT    NOT NULL CHECK (hole_number BETWEEN 1 AND 27),
+    par             SMALLINT    NOT NULL CHECK (par BETWEEN 3 AND 6),
+    stroke_index    SMALLINT    CHECK (stroke_index BETWEEN 1 AND 18), -- handicap rank
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (course_id, hole_number)
+);
+
+-- ---------------------------------------------------------------------------
+-- hole_tees  (yardage for a hole from a specific tee)
+-- ---------------------------------------------------------------------------
+CREATE TABLE hole_tees (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    hole_id         BIGINT      NOT NULL REFERENCES holes (id) ON DELETE CASCADE,
+    tee_id          BIGINT      NOT NULL REFERENCES tees (id)  ON DELETE CASCADE,
+    yards           INTEGER,
+    meters          INTEGER,
+    -- rare overrides: par/stroke index that differ for this tee. Usually NULL.
+    par_override          SMALLINT CHECK (par_override BETWEEN 3 AND 6),
+    stroke_index_override SMALLINT CHECK (stroke_index_override BETWEEN 1 AND 18),
+    UNIQUE (hole_id, tee_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- indexes
+-- ---------------------------------------------------------------------------
+CREATE INDEX idx_tees_course      ON tees      (course_id);
+CREATE INDEX idx_holes_course     ON holes     (course_id);
+CREATE INDEX idx_hole_tees_hole   ON hole_tees (hole_id);
+CREATE INDEX idx_hole_tees_tee    ON hole_tees (tee_id);
+
+-- ---------------------------------------------------------------------------
+-- keep updated_at fresh on UPDATE (Postgres)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_courses_updated BEFORE UPDATE ON courses
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_tees_updated    BEFORE UPDATE ON tees
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_holes_updated   BEFORE UPDATE ON holes
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ===========================================================================
+-- Portability notes
+-- ===========================================================================
+-- Primary keys: the DDL above uses Postgres identity columns. For SQLite,
+-- swap each `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` for
+-- `INTEGER PRIMARY KEY`.
+-- SQLite also has no TIMESTAMPTZ (use TEXT/INTEGER), no plpgsql trigger
+-- syntax (use a plain BEFORE UPDATE trigger or set updated_at in app code),
+-- and treats CHECK/UNIQUE the same. Replace now() with CURRENT_TIMESTAMP.
