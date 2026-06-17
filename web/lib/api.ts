@@ -45,6 +45,19 @@ export type ApproachAccuracy = "short" | "long" | "left" | "right" | "on";
 export type PenaltyStroke = "off_tee" | "approach";
 export type Hazard = "water" | "bunker" | "natural_area";
 
+export interface Beer {
+  beer_id: number;
+  name: string;
+  abv: number | null;
+}
+
+export interface BeerIn {
+  beer_id: number | null; // null => "other"; send name (+ abv) instead
+  name: string | null;
+  abv: number | null;
+  size_oz: number;
+}
+
 export interface HoleStatIn {
   hole_id: number;
   score: number | null;
@@ -56,9 +69,9 @@ export interface HoleStatIn {
   penalty_stroke: PenaltyStroke | null;
   hazards_hit: Hazard[];
   balls_lost: number;
-  beers_finished: number;
   nicotine: { type: string; quantity: number }[];
   weed: { type: string; amount: number | null; unit: string | null }[];
+  beers: BeerIn[];
 }
 
 export interface RoundIn {
@@ -85,6 +98,7 @@ export interface RoundSummary {
   penalty_holes: number;
   balls_lost: number;
   beers_finished: number;
+  beer_oz: number;
 }
 
 export interface GolferStats {
@@ -122,5 +136,6 @@ export const api = {
   golferStats: (id: number) => get<GolferStats>(`/golfers/${id}/stats`),
   listCourses: () => get<Course[]>("/courses"),
   getCourse: (id: number) => get<CourseDetail>(`/courses/${id}`),
+  listBeers: () => get<Beer[]>("/beers"),
   createRound: (b: RoundIn) => post<{ round_id: number }>("/rounds", b),
 };

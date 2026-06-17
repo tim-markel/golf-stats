@@ -34,9 +34,9 @@ def create_round(body: RoundIn):
                     INSERT INTO hole_stats (
                         round_id, hole_id, score, putts, driving_accuracy, gir,
                         approach_accuracy, up_and_down, penalty_stroke,
-                        hazards_hit, balls_lost, beers_finished
+                        hazards_hit, balls_lost
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     RETURNING id
                     """,
@@ -44,7 +44,7 @@ def create_round(body: RoundIn):
                         round_id, hs.hole_id, hs.score, hs.putts,
                         hs.driving_accuracy, hs.gir, hs.approach_accuracy,
                         hs.up_and_down, hs.penalty_stroke, hs.hazards_hit,
-                        hs.balls_lost, hs.beers_finished,
+                        hs.balls_lost,
                     ),
                 ).fetchone()
                 hole_stat_id = stat_row["id"]
@@ -59,7 +59,32 @@ def create_round(body: RoundIn):
                         "INSERT INTO hole_weed (hole_stat_id, type, amount, unit) VALUES (%s, %s, %s, %s)",
                         (hole_stat_id, w.type, w.amount, w.unit),
                     )
+                for b in hs.beers:
+                    beer_id = _resolve_beer_id(conn, b)
+                    conn.execute(
+                        "INSERT INTO hole_beer (hole_stat_id, beer_id, size_oz) VALUES (%s, %s, %s)",
+                        (hole_stat_id, beer_id, b.size_oz),
+                    )
     return {"round_id": round_id}
+
+
+def _resolve_beer_id(conn, beer) -> int:
+    """Return a beer_options id. If the beer is an "other" entry (a name, no
+    id), upsert it into the catalog so it's reusable next time."""
+    if beer.beer_id is not None:
+        return beer.beer_id
+    if not beer.name:
+        raise HTTPException(422, "A beer needs either beer_id or a name.")
+    row = conn.execute(
+        """
+        INSERT INTO beer_options (name, abv) VALUES (%s, %s)
+        ON CONFLICT (name) DO UPDATE
+            SET abv = COALESCE(EXCLUDED.abv, beer_options.abv)
+        RETURNING beer_id
+        """,
+        (beer.name.strip(), beer.abv),
+    ).fetchone()
+    return row["beer_id"]
 
 
 @router.get("/{round_id}")

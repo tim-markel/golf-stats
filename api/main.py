@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import pool
-from .routers import courses, golfers, rounds, stats
+from .routers import beers, courses, golfers, rounds, stats
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.add_middleware(
 
 app.include_router(golfers.router)
 app.include_router(courses.router)
+app.include_router(beers.router)
 app.include_router(rounds.router)
 app.include_router(stats.router)
 

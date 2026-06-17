@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   api,
   ApproachAccuracy,
+  Beer,
   Course,
   CourseDetail,
   DrivingAccuracy,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/api";
 
 const HAZARDS: Hazard[] = ["water", "bunker", "natural_area"];
+const BEER_SIZES = [12, 16, 19.2, 7, 22, 25];
 
 function emptyHoleStat(hole_id: number): HoleStatIn {
   return {
@@ -28,9 +30,9 @@ function emptyHoleStat(hole_id: number): HoleStatIn {
     penalty_stroke: null,
     hazards_hit: [],
     balls_lost: 0,
-    beers_finished: 0,
     nicotine: [],
     weed: [],
+    beers: [],
   };
 }
 
@@ -102,11 +104,135 @@ function Stepper({
   );
 }
 
+// Beer logging for a single hole: pick a saved beer (or "Other" → name + abv),
+// choose a size, and add it. Added beers are listed with a remove button.
+function BeerEntry({
+  options,
+  beers,
+  onChange,
+}: {
+  options: Beer[];
+  beers: HoleStatIn["beers"];
+  onChange: (b: HoleStatIn["beers"]) => void;
+}) {
+  const [pick, setPick] = useState<string>(""); // beer_id as string, or "other"
+  const [size, setSize] = useState<number>(12);
+  const [name, setName] = useState("");
+  const [abv, setAbv] = useState("");
+
+  function add() {
+    if (pick === "") return;
+    if (pick === "other") {
+      if (!name.trim()) return;
+      onChange([
+        ...beers,
+        { beer_id: null, name: name.trim(), abv: abv ? Number(abv) : null, size_oz: size },
+      ]);
+      setName("");
+      setAbv("");
+    } else {
+      onChange([
+        ...beers,
+        { beer_id: Number(pick), name: null, abv: null, size_oz: size },
+      ]);
+    }
+  }
+
+  function label(b: HoleStatIn["beers"][number]) {
+    const nm =
+      b.beer_id != null
+        ? options.find((o) => o.beer_id === b.beer_id)?.name ?? "Beer"
+        : b.name ?? "Beer";
+    return `${nm} · ${b.size_oz} oz`;
+  }
+
+  return (
+    <div>
+      <div className="mb-1 text-sm font-medium">Beers 🍺</div>
+
+      {beers.length > 0 && (
+        <ul className="mb-2 space-y-1">
+          {beers.map((b, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded bg-fairway-light px-3 py-1 text-sm"
+            >
+              <span>{label(b)}</span>
+              <button
+                type="button"
+                onClick={() => onChange(beers.filter((_, idx) => idx !== i))}
+                className="text-gray-500 hover:text-red-600"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className="rounded border px-2 py-1.5 text-sm"
+          value={pick}
+          onChange={(e) => setPick(e.target.value)}
+        >
+          <option value="">Choose a beer…</option>
+          {options.map((o) => (
+            <option key={o.beer_id} value={o.beer_id}>
+              {o.name}
+              {o.abv != null ? ` (${o.abv}%)` : ""}
+            </option>
+          ))}
+          <option value="other">Other…</option>
+        </select>
+
+        <select
+          className="rounded border px-2 py-1.5 text-sm"
+          value={size}
+          onChange={(e) => setSize(Number(e.target.value))}
+        >
+          {BEER_SIZES.map((s) => (
+            <option key={s} value={s}>
+              {s} oz
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={add}
+          className="rounded bg-fairway px-3 py-1.5 text-sm font-medium text-white"
+        >
+          Add
+        </button>
+      </div>
+
+      {pick === "other" && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            className="flex-1 rounded border px-2 py-1.5 text-sm"
+            placeholder="Beer name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="w-24 rounded border px-2 py-1.5 text-sm"
+            placeholder="ABV %"
+            value={abv}
+            onChange={(e) => setAbv(e.target.value)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NewRoundPage() {
   const router = useRouter();
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [course, setCourse] = useState<CourseDetail | null>(null);
+  const [beerOptions, setBeerOptions] = useState<Beer[]>([]);
 
   const [golferId, setGolferId] = useState<number | null>(null);
   const [courseId, setCourseId] = useState<number | null>(null);
@@ -127,6 +253,7 @@ export default function NewRoundPage() {
   useEffect(() => {
     api.listGolfers().then(setGolfers).catch(() => {});
     api.listCourses().then(setCourses).catch(() => {});
+    api.listBeers().then(setBeerOptions).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -392,10 +519,10 @@ export default function NewRoundPage() {
           value={s.balls_lost}
           onChange={(v) => patch(current, { balls_lost: v })}
         />
-        <Stepper
-          label="Beers 🍺"
-          value={s.beers_finished}
-          onChange={(v) => patch(current, { beers_finished: v })}
+        <BeerEntry
+          options={beerOptions}
+          beers={s.beers}
+          onChange={(b) => patch(current, { beers: b })}
         />
       </div>
 

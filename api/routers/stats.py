@@ -31,7 +31,8 @@ def golfer_stats(golfer_id: int):
                    COALESCE(rs.up_and_downs, 0)   AS up_and_downs,
                    COALESCE(rs.penalty_holes, 0)  AS penalty_holes,
                    COALESCE(rs.balls_lost, 0)     AS balls_lost,
-                   COALESCE(rs.beers_finished, 0) AS beers_finished
+                   COALESCE(rs.beers_finished, 0) AS beers_finished,
+                   COALESCE(rs.beer_oz, 0)        AS beer_oz
             FROM rounds r
             JOIN courses c ON c.id = r.course_id
             LEFT JOIN round_stats rs ON rs.round_id = r.round_id

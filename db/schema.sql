@@ -150,7 +150,7 @@ CREATE TABLE hole_stats (
                         CHECK (hazards_hit <@ ARRAY['water', 'bunker', 'natural_area']),
 
     balls_lost      SMALLINT    NOT NULL DEFAULT 0 CHECK (balls_lost >= 0),
-    beers_finished  SMALLINT    NOT NULL DEFAULT 0 CHECK (beers_finished >= 0),
+    -- beers consumed live in hole_beer (name + size); see below.
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -183,6 +183,45 @@ CREATE TABLE hole_weed (
 );
 
 -- ---------------------------------------------------------------------------
+-- beer_options  (catalog of beers; seeded with popular picks, grows as users
+--                add their own via the "other" option during round entry)
+-- ---------------------------------------------------------------------------
+CREATE TABLE beer_options (
+    beer_id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name            TEXT        NOT NULL UNIQUE,   -- UNIQUE so "other" upserts cleanly
+    abv             NUMERIC(4,1),                  -- % alcohol by volume, e.g. 4.2
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Seed with popular choices (idempotent).
+INSERT INTO beer_options (name, abv) VALUES
+    ('Bud Light', 4.2),
+    ('Coors Light', 4.2),
+    ('Miller Lite', 4.2),
+    ('Michelob Ultra', 4.2),
+    ('Budweiser', 5.0),
+    ('Corona Extra', 4.6),
+    ('Modelo Especial', 4.4),
+    ('Pacifico', 4.4),
+    ('Heineken', 5.0),
+    ('Stella Artois', 5.0),
+    ('Guinness Draught', 4.2),
+    ('Truly Hard Seltzer', 5.0),
+    ('White Claw', 5.0)
+ON CONFLICT (name) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- hole_beer  (beers consumed on a hole — name (via beer_id) + size; many/hole)
+-- ---------------------------------------------------------------------------
+CREATE TABLE hole_beer (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    hole_stat_id    BIGINT      NOT NULL REFERENCES hole_stats  (id)      ON DELETE CASCADE,
+    beer_id         BIGINT      NOT NULL REFERENCES beer_options (beer_id) ON DELETE RESTRICT,
+    size_oz         NUMERIC(4,1) NOT NULL CHECK (size_oz > 0)   -- e.g. 12, 16, 19.2
+);
+
+-- ---------------------------------------------------------------------------
 -- indexes
 -- ---------------------------------------------------------------------------
 CREATE INDEX idx_tees_course      ON tees      (course_id);
@@ -195,6 +234,8 @@ CREATE INDEX idx_hole_stats_round ON hole_stats    (round_id);
 CREATE INDEX idx_hole_stats_hole  ON hole_stats    (hole_id);
 CREATE INDEX idx_hole_nicotine    ON hole_nicotine (hole_stat_id);
 CREATE INDEX idx_hole_weed        ON hole_weed     (hole_stat_id);
+CREATE INDEX idx_hole_beer        ON hole_beer     (hole_stat_id);
+CREATE INDEX idx_hole_beer_beer   ON hole_beer     (beer_id);
 
 -- ---------------------------------------------------------------------------
 -- keep updated_at fresh on UPDATE (Postgres)
@@ -218,6 +259,8 @@ CREATE TRIGGER trg_rounds_updated  BEFORE UPDATE ON rounds
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_hole_stats_updated BEFORE UPDATE ON hole_stats
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_beer_options_updated BEFORE UPDATE ON beer_options
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- round_stats  (round-level totals derived from hole_stats; not a stored table)
@@ -234,9 +277,18 @@ SELECT
     COUNT(*) FILTER (WHERE hs.up_and_down)                    AS up_and_downs,
     COUNT(*) FILTER (WHERE hs.penalty_stroke IS NOT NULL)     AS penalty_holes,
     SUM(hs.balls_lost)                                        AS balls_lost,
-    SUM(hs.beers_finished)                                    AS beers_finished
+    COALESCE(b.beers, 0)                                      AS beers_finished,
+    COALESCE(b.beer_oz, 0)                                    AS beer_oz
 FROM hole_stats hs
-GROUP BY hs.round_id;
+LEFT JOIN (
+    SELECT hs2.round_id,
+           COUNT(*)        AS beers,
+           SUM(hb.size_oz) AS beer_oz
+    FROM hole_beer hb
+    JOIN hole_stats hs2 ON hs2.id = hb.hole_stat_id
+    GROUP BY hs2.round_id
+) b ON b.round_id = hs.round_id
+GROUP BY hs.round_id, b.beers, b.beer_oz;
 
 -- ===========================================================================
 -- Portability notes

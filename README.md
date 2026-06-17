@@ -73,6 +73,8 @@ erDiagram
     holes   ||--o{ hole_stats : "for hole"
     hole_stats ||--o{ hole_nicotine : "logs"
     hole_stats ||--o{ hole_weed : "logs"
+    hole_stats ||--o{ hole_beer : "logs"
+    beer_options ||--o{ hole_beer : "which beer"
 
     courses {
         bigint id PK
@@ -132,7 +134,6 @@ erDiagram
         text penalty_stroke "off_tee/approach"
         text_array hazards_hit "water/bunker/natural_area"
         smallint balls_lost
-        smallint beers_finished
     }
     hole_nicotine {
         bigint id PK
@@ -146,6 +147,17 @@ erDiagram
         text type
         numeric amount
         text unit
+    }
+    beer_options {
+        bigint beer_id PK
+        text name "unique"
+        numeric abv
+    }
+    hole_beer {
+        bigint id PK
+        bigint hole_stat_id FK
+        bigint beer_id FK
+        numeric size_oz
     }
 ```
 

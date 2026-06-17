@@ -65,6 +65,26 @@ class WeedIn(BaseModel):
     unit: Optional[Literal["g", "mg", "hits"]] = None
 
 
+class BeerCreate(BaseModel):
+    name: str
+    abv: Optional[float] = None
+
+
+class Beer(BeerCreate):
+    beer_id: int
+
+
+class BeerIn(BaseModel):
+    """A beer consumed on a hole. Either reference an existing beer by id, or
+    pass a name (+ optional abv) for an "other" beer — it's added to the catalog
+    and reused next time."""
+
+    beer_id: Optional[int] = None
+    name: Optional[str] = None
+    abv: Optional[float] = None
+    size_oz: float
+
+
 class HoleStatIn(BaseModel):
     hole_id: int
     score: Optional[int] = None
@@ -76,9 +96,9 @@ class HoleStatIn(BaseModel):
     penalty_stroke: Optional[PenaltyStroke] = None
     hazards_hit: list[Hazard] = Field(default_factory=list)
     balls_lost: int = 0
-    beers_finished: int = 0
     nicotine: list[NicotineIn] = Field(default_factory=list)
     weed: list[WeedIn] = Field(default_factory=list)
+    beers: list[BeerIn] = Field(default_factory=list)
 
 
 class RoundIn(BaseModel):
@@ -110,6 +130,7 @@ class RoundSummary(BaseModel):
     penalty_holes: int = 0
     balls_lost: int = 0
     beers_finished: int = 0
+    beer_oz: float = 0
 
 
 class GolferStats(BaseModel):
