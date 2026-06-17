@@ -54,10 +54,50 @@ aims to go much further:
 captures the intended direction; implementation details (tech stack, data
 schema, and specific APIs) will be filled in as the project takes shape.
 
+## Course scraper
+
+The `scraper/` package is the course-data ingestion tool. You give it a course
+name and an LLM agent searches the web, reads the resulting pages, and extracts
+a structured record (course details, tee sets, and hole-by-hole par / stroke
+index / yardages) that it writes into the database.
+
+**Pipeline:** `course name → Tavily web search → fetch & clean pages → Gemini
+structured extraction → insert into Postgres`
+
+### Setup
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # then fill in your keys
+```
+
+You'll need two free API keys in `.env`:
+
+- `GEMINI_API_KEY` — Google AI Studio (https://aistudio.google.com/apikey)
+- `TAVILY_API_KEY` — Tavily search (https://app.tavily.com)
+
+And a running Postgres database with the schema applied:
+
+```bash
+createdb golf_stats
+psql golf_stats -f db/schema.sql
+```
+
+### Usage
+
+```bash
+# Preview the extracted data without touching the database:
+python -m scraper.cli "Pebble Beach Golf Links, Pebble Beach, CA" --dry-run
+
+# Scrape and write the course into the database:
+python -m scraper.cli "Pebble Beach Golf Links, Pebble Beach, CA"
+```
+
 ## Roadmap
 
-- [ ] Define data model for courses, rounds, and holes
-- [ ] Build the course-scraping agent
+- [x] Define data model for courses and holes
+- [x] Build the course-scraping agent
 - [ ] Integrate external golf data APIs
 - [ ] Implement the stats engine (standard + custom metrics)
 - [ ] Build the dashboard / app front end
