@@ -54,6 +54,101 @@ aims to go much further:
 captures the intended direction; implementation details (tech stack, data
 schema, and specific APIs) will be filled in as the project takes shape.
 
+## Data model
+
+The full schema lives in [`db/schema.sql`](db/schema.sql). The diagram below
+(an entity-relationship diagram) shows how the tables connect. `round_stats` is
+a view that aggregates `hole_stats` up to the round level, so it isn't shown.
+
+```mermaid
+erDiagram
+    courses ||--o{ tees : "has"
+    courses ||--o{ holes : "has"
+    holes   ||--o{ hole_tees : "yardage per tee"
+    tees    ||--o{ hole_tees : "yardage per hole"
+    golfers ||--o{ rounds : "plays"
+    courses ||--o{ rounds : "played at"
+    tees    |o--o{ rounds : "played from"
+    rounds  ||--o{ hole_stats : "scored on"
+    holes   ||--o{ hole_stats : "for hole"
+    hole_stats ||--o{ hole_nicotine : "logs"
+    hole_stats ||--o{ hole_weed : "logs"
+
+    courses {
+        bigint id PK
+        text name
+        text city
+        text country
+        smallint holes_count
+        smallint par
+        text data_source "scraper provenance"
+    }
+    tees {
+        bigint id PK
+        bigint course_id FK
+        text name
+        integer total_yards
+        numeric course_rating
+        smallint slope_rating
+    }
+    holes {
+        bigint id PK
+        bigint course_id FK
+        smallint hole_number
+        smallint par
+        smallint stroke_index "handicap rank 1-18"
+    }
+    hole_tees {
+        bigint id PK
+        bigint hole_id FK
+        bigint tee_id FK
+        integer yards
+    }
+    golfers {
+        bigint golfer_id PK
+        text name
+        numeric handicap
+        text ghin_id
+    }
+    rounds {
+        bigint round_id PK
+        bigint golfer_id FK
+        bigint course_id FK
+        bigint tee_id FK "nullable"
+        date played_on
+        text time_of_day "morning/afternoon/twilight"
+        interval round_duration
+    }
+    hole_stats {
+        bigint id PK
+        bigint round_id FK
+        bigint hole_id FK
+        smallint score
+        smallint putts
+        text driving_accuracy "par 4/5 only"
+        boolean gir
+        text approach_accuracy
+        boolean up_and_down
+        text penalty_stroke "off_tee/approach"
+        text_array hazards_hit "water/bunker/natural_area"
+        smallint balls_lost
+        smallint beers_finished
+    }
+    hole_nicotine {
+        bigint id PK
+        bigint hole_stat_id FK
+        text type
+        smallint quantity
+    }
+    hole_weed {
+        bigint id PK
+        bigint hole_stat_id FK
+        text type
+        numeric amount
+        text unit
+    }
+```
+
 ## Course scraper
 
 The `scraper/` package is the course-data ingestion tool. You give it a course
