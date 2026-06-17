@@ -25,34 +25,44 @@ aims to go much further:
   native app) where you can plug in and visualize the custom statistics that
   matter most to you.
 
-## How it works (planned)
+## How it works
 
-1. **Course data ingestion** — A scraping agent takes course inputs (name,
-   location, tees) and gathers course details from public golf websites and
-   APIs: hole yardages, par, handicap/stroke index, slope, and course rating.
-2. **Round entry** — You log your rounds with hole-by-hole detail (score, putts,
-   fairway/green hit, penalties, etc.).
-3. **Stats engine** — Raw round and course data is combined to compute both
-   standard and custom advanced statistics.
-4. **Dashboard** — Everything is surfaced in an interactive dashboard where you
-   can monitor trends, compare rounds, and add your own custom stat definitions.
+1. **Course data ingestion** — A scraping agent ([`scraper/`](scraper)) takes a
+   course name, searches the web, and extracts course details (tees, hole
+   yardages, par, stroke index, slope, and course rating) into the database.
+2. **Round entry** — You log rounds hole-by-hole in the web app: score, putts,
+   driving/approach accuracy, GIR, penalties, hazards, balls lost, and on-course
+   beer/nicotine/weed consumption.
+3. **Stats** — A `round_stats` view rolls the hole-level data up to round
+   totals; the API aggregates further (scoring average, GIR %, fairway %, etc.).
+4. **Dashboard** — The Next.js app ([`web/`](web)) surfaces per-golfer stats and
+   trends, and provides the round-entry UI.
 
-## Core components
+## Architecture
 
-- **Scraping agent** — Pulls golf course information from the web based on user
-  inputs. Designed to work across multiple sources.
-- **Data layer** — Stores courses, rounds, and per-hole records.
-- **Stats engine** — Computes standard metrics plus user-defined custom stats.
-- **Dashboard / app** — The front end where you configure custom statistics and
-  monitor your game.
-- **API integrations** — Uses multiple third-party APIs for golf course data,
-  statistics, and related golf information.
+```
+scraper/ (Python + Gemini + Tavily)
+        ↓ writes courses
+   Postgres  ──  db/schema.sql
+        ↑ reads / writes
+   api/ (FastAPI)  ──JSON──  web/ (Next.js + React PWA)
+```
+
+- **Scraper** ([`scraper/`](scraper)) — Python agent: Tavily web search → fetch
+  & clean pages → Gemini structured extraction → insert into Postgres.
+- **Data layer** ([`db/schema.sql`](db/schema.sql)) — PostgreSQL schema for
+  courses, tees, holes, golfers, rounds, and hole-by-hole stats (see ERD below).
+- **API** ([`api/`](api)) — FastAPI service exposing golfers, courses, rounds,
+  the beer catalog, and aggregated stats as JSON.
+- **Web app** ([`web/`](web)) — Next.js + React + Tailwind + Recharts PWA: a
+  GHIN/18Birdies-style entry flow plus per-golfer visualization, on phone and
+  desktop from one codebase.
 
 ## Status
 
-🚧 **Early development.** This repository is just getting started. The README
-captures the intended direction; implementation details (tech stack, data
-schema, and specific APIs) will be filled in as the project takes shape.
+🟢 **Working vertical slice.** The scraper, database, API, and web app are all
+built and runnable. Next up: advanced and user-defined custom statistics, and
+broader external golf-data API integrations (see the roadmap).
 
 ## Data model
 
