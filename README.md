@@ -189,11 +189,50 @@ python -m scraper.cli "Pebble Beach Golf Links, Pebble Beach, CA" --dry-run
 python -m scraper.cli "Pebble Beach Golf Links, Pebble Beach, CA"
 ```
 
+## Web app (API + dashboard)
+
+The app is split into a backend API and a frontend, both sitting on top of the
+Postgres database:
+
+- **`api/`** — a FastAPI service exposing golfers, courses, rounds, and
+  aggregated stats as JSON.
+- **`web/`** — a Next.js (React + Tailwind) app with a GHIN/18Birdies-style
+  hole-by-hole round-entry flow and a per-golfer visualization page (scoring
+  trend, putts, GIR %, fairway %, round history). Installable as a PWA, so it
+  works on both phone and desktop from one codebase.
+
+```
+Postgres → FastAPI (api/) → Next.js (web/)
+```
+
+### Run the backend
+
+```bash
+source .venv/bin/activate            # same venv as the scraper
+pip install -r api/requirements.txt
+uvicorn api.main:app --reload        # serves http://localhost:8000 (docs at /docs)
+```
+
+It reads `DATABASE_URL` from `.env` (defaults to `postgresql://localhost:5432/golf_stats`).
+
+### Run the frontend
+
+```bash
+cd web
+npm install
+cp .env.local.example .env.local     # points at http://localhost:8000 by default
+npm run dev                          # serves http://localhost:3000
+```
+
+Add a course with the scraper first (so there's something to log rounds
+against), then open the app, create a golfer, and start a round.
+
 ## Roadmap
 
 - [x] Define data model for courses and holes
 - [x] Build the course-scraping agent
+- [x] Build the API (FastAPI) over the data model
+- [x] Build the dashboard / app front end (Next.js: entry UI + golfer stats)
 - [ ] Integrate external golf data APIs
-- [ ] Implement the stats engine (standard + custom metrics)
-- [ ] Build the dashboard / app front end
+- [ ] Implement the stats engine (advanced + user-defined custom metrics)
 - [ ] Add support for user-defined custom statistics

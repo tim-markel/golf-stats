@@ -1,0 +1,10 @@
+{
+  "name": "golf-stats",
+  "short_name": "golf-stats",
+  "description": "Track and visualize your golf game, hole by hole.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f7a3d",
+  "icons": []
+}
