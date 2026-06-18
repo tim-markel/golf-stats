@@ -135,6 +135,7 @@ export interface GolferStats {
   avg_putts: number | null;
   gir_pct: number | null;
   fairway_pct: number | null;
+  handicap_index: number | null;
   rounds: RoundSummary[];
 }
 

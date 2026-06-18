@@ -149,6 +149,7 @@ class GolferStats(BaseModel):
     avg_putts: Optional[float] = None
     gir_pct: Optional[float] = None
     fairway_pct: Optional[float] = None
+    handicap_index: Optional[float] = None
     rounds: list[RoundSummary] = []
 
 

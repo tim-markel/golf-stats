@@ -15,11 +15,27 @@ import {
 import { api, GolferStats } from "@/lib/api";
 import { useGolfer } from "@/lib/golfer-context";
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  info,
+}: {
+  label: string;
+  value: string;
+  info?: string;
+}) {
   return (
-    <div className="card p-4 text-center">
+    <div className="group relative card p-4 text-center">
       <div className="text-2xl font-bold text-fairway">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-gray-500">
+        {label}
+        {info && <span className="ml-0.5 text-gray-400">ⓘ</span>}
+      </div>
+      {info && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-60 -translate-x-1/2 rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal normal-case leading-snug text-gray-600 shadow-card group-hover:block">
+          {info}
+        </div>
+      )}
     </div>
   );
 }
@@ -107,7 +123,12 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard
+          label="Hcp index"
+          value={fmt(data.handicap_index)}
+          info="Estimated handicap index — the average of your best recent score differentials. Each round's differential = (113 ÷ slope) × (score − course rating), using your tee's slope/rating. Uses the best of your last 20 rated 18-hole rounds (WHS-style). Not an official USGA/GHIN handicap."
+        />
         <StatCard label="Avg score" value={fmt(data.avg_score)} />
         <StatCard label="Avg putts" value={fmt(data.avg_putts)} />
         <StatCard label="GIR" value={fmt(data.gir_pct, "%")} />

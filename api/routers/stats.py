@@ -32,10 +32,12 @@ def golfer_stats(golfer_id: int):
                    COALESCE(rs.penalty_holes, 0)  AS penalty_holes,
                    COALESCE(rs.balls_lost, 0)     AS balls_lost,
                    COALESCE(rs.beers_finished, 0) AS beers_finished,
-                   COALESCE(rs.beer_oz, 0)        AS beer_oz
+                   COALESCE(rs.beer_oz, 0)        AS beer_oz,
+                   t.course_rating, t.slope_rating
             FROM rounds r
             JOIN courses c ON c.id = r.course_id
             LEFT JOIN round_stats rs ON rs.round_id = r.round_id
+            LEFT JOIN tees t ON t.id = r.tee_id
             WHERE r.golfer_id = %s
             ORDER BY r.played_on
             """,
@@ -60,6 +62,7 @@ def golfer_stats(golfer_id: int):
     total_drv = sum(r["driving_holes"] for r in rounds)
     gir_pct = (100.0 * total_gir / total_holes) if total_holes else None
     fairway_pct = (100.0 * total_fw / total_drv) if total_drv else None
+    handicap_index = compute_handicap_index(full18)
 
     return {
         "golfer": golfer,
@@ -68,5 +71,37 @@ def golfer_stats(golfer_id: int):
         "avg_putts": avg_putts,
         "gir_pct": gir_pct,
         "fairway_pct": fairway_pct,
+        "handicap_index": handicap_index,
         "rounds": rounds,
     }
+
+
+# WHS table: differentials available -> (count averaged, adjustment).
+def _whs_params(n: int):
+    if n >= 20: return 8, 0.0
+    if n == 19: return 7, 0.0
+    if n >= 17: return 6, 0.0
+    if n >= 15: return 5, 0.0
+    if n >= 12: return 4, 0.0
+    if n >= 9: return 3, 0.0
+    if n >= 7: return 2, 0.0
+    if n == 6: return 2, -1.0
+    if n == 5: return 1, 0.0
+    if n == 4: return 1, -1.0
+    return 1, -2.0  # n == 3
+
+
+def compute_handicap_index(full18_rounds):
+    """Score differential = (113 / slope) * (score - rating); index = best of
+    the most recent 20 (per the WHS table). Needs >= 3 rated 18-hole rounds."""
+    diffs = []
+    for r in full18_rounds:  # already chronological
+        if r["total_score"] is None or not r["slope_rating"] or r["course_rating"] is None:
+            continue
+        diffs.append((113.0 / r["slope_rating"]) * (r["total_score"] - float(r["course_rating"])))
+    pool = diffs[-20:]  # most recent 20 eligible rounds
+    if len(pool) < 3:
+        return None
+    count, adj = _whs_params(len(pool))
+    lowest = sorted(pool)[:count]
+    return round(sum(lowest) / len(lowest) + adj, 1)
