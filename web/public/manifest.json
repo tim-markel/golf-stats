@@ -1,6 +1,6 @@
 {
-  "name": "People's Golf",
-  "short_name": "People's Golf",
+  "name": "Bogey Book",
+  "short_name": "Bogey Book",
   "description": "Track and visualize your golf game, hole by hole.",
   "start_url": "/",
   "display": "standalone",

@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import {
   api,
@@ -338,14 +340,6 @@ const SCORE_DEFS = [
   { name: "Double", color: CB.vermillion },
   { name: "Triple+", color: CB.purple },
 ];
-const FAIRWAY_DEFS = [
-  { key: "fairway", name: "Fairway", color: CB.green },
-  { key: "left", name: "Left", color: CB.sky },
-  { key: "right", name: "Right", color: CB.blue },
-  { key: "short", name: "Short", color: CB.orange },
-  { key: "long", name: "Long", color: CB.purple },
-];
-
 function buildPie(
   defs: { name: string; color: string }[],
   counts: Record<string, number>
@@ -355,97 +349,133 @@ function buildPie(
     .filter((d) => d.value > 0);
 }
 
-function StatPie({
+function StatBar({
   title,
   data,
+  side,
 }: {
   title: string;
-  data: { name: string; value: number; color: string }[];
+  data: { name: string; value: number }[];
+  side?: React.ReactNode;
 }) {
   if (data.length === 0) return null;
+  const total = data.reduce((a, d) => a + d.value, 0) || 1;
+  const Tip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    const v = payload[0].value;
+    return (
+      <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm shadow-card">
+        <div className="font-semibold">{label}</div>
+        <div className="font-bold text-fairway">{Math.round((v / total) * 100)}%</div>
+        <div className="text-xs text-gray-500">
+          {v} of {total}
+        </div>
+      </div>
+    );
+  };
+  const chart = (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} margin={{ left: -22, right: 8, top: 18 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+        <Tooltip content={<Tip />} cursor={{ fill: "rgba(21,102,63,0.06)" }} />
+        <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={48} fill="#1a7a4a">
+          <LabelList
+            dataKey="value"
+            position="top"
+            style={{ fontSize: 12, fontWeight: 600, fill: "#16201b" }}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
   return (
     <div className="card p-4">
       <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-      <ResponsiveContainer width="100%" height={200}>
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            cx="38%"
-            innerRadius={26}
-            outerRadius={72}
-            paddingAngle={2}
-            stroke="none"
-          >
-            {data.map((d) => (
-              <Cell key={d.name} fill={d.color} />
-            ))}
-          </Pie>
-          <Tooltip />
-          <Legend
-            layout="vertical"
-            align="right"
-            verticalAlign="middle"
-            iconType="circle"
-            wrapperStyle={{ fontSize: 12, lineHeight: "20px" }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      {side ? (
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">{chart}</div>
+          {side}
+        </div>
+      ) : (
+        chart
+      )}
     </div>
   );
 }
 
-// Approach dispersion: a green "target" with the % of approaches in each of the
-// 9 zones (center = on the green, plus the 8 miss directions).
-function ApproachGrid({
+// A spatial "target": a 3x3 grid where each cell is a landing zone (center =
+// on target). Cell shade scales with how often shots landed there. A summary
+// (GIR / FW count) sits beside it.
+const APPROACH_LAYOUT = [
+  "long_left", "long", "long_right",
+  "left", "on", "right",
+  "short_left", "short", "short_right",
+];
+const DRIVING_LAYOUT = [
+  null, "long", null,
+  "left", "fairway", "right",
+  null, "short", null,
+];
+
+function DispersionTarget({
+  title,
+  layout,
+  centerKey,
+  centerLabel,
   counts,
-  gir,
-  holes,
+  summaryLabel,
+  summaryValue,
 }: {
+  title: string;
+  layout: (string | null)[];
+  centerKey: string;
+  centerLabel: string;
   counts: Record<string, number>;
-  gir: number;
-  holes: number;
+  summaryLabel: string;
+  summaryValue: string;
 }) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   if (total === 0) return null;
-  const pct = (k: string) => Math.round(((counts[k] || 0) / total) * 100);
-
-  const pos: Record<string, [number, number]> = {
-    long_left: [25, 23], long: [50, 18], long_right: [75, 23],
-    left: [14, 51], on: [50, 51], right: [86, 51],
-    short_left: [25, 83], short: [50, 86], short_right: [75, 83],
-  };
-  const spokes: [number, number][] = [
-    [6, 6], [94, 6], [6, 94], [94, 94], [50, 5], [50, 95], [5, 50], [95, 50],
-  ];
+  const maxPct = Math.max(...layout.filter(Boolean).map((k) => counts[k!] || 0)) / total || 1;
 
   return (
     <div className="card p-4">
-      <h3 className="mb-2 text-sm font-semibold">Approach Stats</h3>
-      <div className="flex items-center gap-3">
-        <svg viewBox="0 0 100 100" className="w-full max-w-[180px] flex-1">
-          <rect x="2" y="2" width="96" height="96" rx="3" fill="#eef6f0"
-                stroke="#1a7a4a" strokeWidth="1.3" />
-          {spokes.map(([x, y], i) => (
-            <line key={i} x1="50" y1="50" x2={x} y2={y} stroke="#c4d4ca" strokeWidth="0.8" />
-          ))}
-          <circle cx="50" cy="50" r="13" fill="#1a7a4a" />
-          {Object.entries(pos).map(([k, [x, y]]) => (
-            <text key={k} x={x} y={y} textAnchor="middle" dominantBaseline="central"
-                  fontSize="7.5" fontWeight="700"
-                  fill={k === "on" ? "#ffffff" : "#16201b"}>
-              {pct(k)}%
-            </text>
-          ))}
-        </svg>
+      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <div className="flex items-center justify-between gap-4">
+        <div className="grid w-40 shrink-0 grid-cols-3 gap-1">
+          {layout.map((key, i) => {
+            if (key == null) return <div key={i} className="aspect-square" />;
+            const count = counts[key] || 0;
+            const frac = count / total;
+            const pct = Math.round(frac * 100);
+            const center = key === centerKey;
+            const alpha = pct === 0 ? 0 : 0.18 + 0.5 * (frac / maxPct);
+            return (
+              <div
+                key={i}
+                className={`group relative flex aspect-square items-center justify-center rounded text-xs font-semibold ${
+                  center ? "ring-2 ring-fairway" : ""
+                } ${pct === 0 ? "bg-gray-50 text-gray-400" : "text-ink"}`}
+                style={pct === 0 ? undefined : { background: `rgba(26,122,74,${alpha})` }}
+              >
+                {pct}%
+                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-ink px-1.5 py-0.5 text-[10px] font-medium text-white group-hover:block">
+                  {count} {count === 1 ? "shot" : "shots"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
         <div className="shrink-0 px-2 text-center">
-          <div className="text-xs uppercase tracking-wide text-gray-500">GIR</div>
-          <div className="text-2xl font-bold text-fairway">
-            {gir}/{holes}
-          </div>
+          <div className="text-xs uppercase tracking-wide text-gray-500">{summaryLabel}</div>
+          <div className="text-2xl font-bold text-fairway">{summaryValue}</div>
         </div>
       </div>
+      <p className="mt-2 text-center text-[11px] text-gray-400">
+        center = {centerLabel} · ▲ long ▼ short ◀ left ▶ right
+      </p>
     </div>
   );
 }
@@ -503,21 +533,27 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const scorePie = buildPie(SCORE_DEFS, scoreCounts);
   const puttPie = buildPie(PUTT_DEFS, puttCounts);
 
-  // fairway-accuracy distribution: 5 options, each labeled with its percentage
+  // average score per par type (3s / 4s / 5s)
+  const parGroups: Record<number, number[]> = {};
+  round.holes.forEach((h) => {
+    if (h.score != null) (parGroups[h.par] = parGroups[h.par] || []).push(h.score);
+  });
+  const parAverages = Object.keys(parGroups)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((par) => ({
+      par,
+      avg: parGroups[par].reduce((a, b) => a + b, 0) / parGroups[par].length,
+    }));
+  const puttsHoles = round.holes.filter((h) => h.putts != null).length;
+  const avgPutts = puttsHoles && round.total_putts != null ? round.total_putts / puttsHoles : null;
+
+  // driving-accuracy counts for the Fairways target
   const fwCounts: Record<string, number> = {};
   round.holes.forEach((h) => {
     if (h.par >= 4 && h.driving_accuracy)
       fwCounts[h.driving_accuracy] = (fwCounts[h.driving_accuracy] || 0) + 1;
   });
-  const fwRecorded = Object.values(fwCounts).reduce((a, b) => a + b, 0);
-  const fairwayPie =
-    fwRecorded === 0
-      ? []
-      : FAIRWAY_DEFS.map((d) => {
-          const v = fwCounts[d.key] || 0;
-          const pct = Math.round((v / fwRecorded) * 100);
-          return { name: `${d.name} ${pct}%`, value: v, color: d.color };
-        });
 
   function startEdit() {
     const d: Draft = {};
@@ -614,11 +650,6 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       <section>
         <h2 className="mb-2 font-semibold">Round totals</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Summary
-            label="Putts"
-            value={round.total_putts != null ? String(round.total_putts) : "–"}
-          />
-          <Summary label="Fairways hit" value={`${fairwaysHit}/${fairwaysTotal}`} />
           {t.hazards > 0 && <Summary label="Hazards hit" value={String(t.hazards)} />}
           {t.balls_lost > 0 && <Summary label="Balls lost" value={String(t.balls_lost)} />}
           {t.penalty_strokes > 0 && (
@@ -635,10 +666,64 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <ApproachGrid counts={approachCounts} gir={girCount} holes={holesCount} />
-          <StatPie title="Score distribution" data={scorePie} />
-          <StatPie title="Putt distribution" data={puttPie} />
-          <StatPie title="Fairways" data={fairwayPie} />
+          <DispersionTarget
+            title="Approach"
+            layout={APPROACH_LAYOUT}
+            centerKey="on"
+            centerLabel="green hit"
+            counts={approachCounts}
+            summaryLabel="GIR"
+            summaryValue={`${girCount}/${holesCount}`}
+          />
+          <DispersionTarget
+            title="Fairways"
+            layout={DRIVING_LAYOUT}
+            centerKey="fairway"
+            centerLabel="FW hit"
+            counts={fwCounts}
+            summaryLabel="FW"
+            summaryValue={`${fairwaysHit}/${fairwaysTotal}`}
+          />
+          <StatBar
+            title="Score distribution"
+            data={scorePie}
+            side={
+              parAverages.length ? (
+                <div className="shrink-0 space-y-1.5 px-1 text-center">
+                  {parAverages.map((p) => (
+                    <div key={p.par}>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                        Par {p.par}
+                      </div>
+                      <div className="text-lg font-bold text-fairway">{p.avg.toFixed(1)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : undefined
+            }
+          />
+          <StatBar
+            title="Putt distribution"
+            data={puttPie}
+            side={
+              round.total_putts != null ? (
+                <div className="shrink-0 space-y-1.5 px-1 text-center">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
+                    <div className="text-lg font-bold text-fairway">{round.total_putts}</div>
+                  </div>
+                  {avgPutts != null && (
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                        Avg/hole
+                      </div>
+                      <div className="text-lg font-bold text-fairway">{avgPutts.toFixed(1)}</div>
+                    </div>
+                  )}
+                </div>
+              ) : undefined
+            }
+          />
         </div>
       </section>
     </div>
