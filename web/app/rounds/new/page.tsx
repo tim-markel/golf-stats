@@ -13,7 +13,9 @@ import {
   Hazard,
   hazardLabel,
   HoleStatIn,
+  nicotineLabel,
   PenaltyStroke,
+  weedLabel,
 } from "@/lib/api";
 import Combobox from "@/components/Combobox";
 
@@ -25,6 +27,9 @@ const HAZARDS: Hazard[] = [
   "ob",
 ];
 const BEER_SIZES = [12, 16, 19.2, 7, 22, 25];
+const NIC_TYPES = ["cigarette", "cigar", "vape", "dip", "pouch", "gum"];
+const WEED_TYPES = ["joint", "blunt", "bowl", "vape", "dab", "edible"];
+const WEED_UNITS = ["g", "mg", "hits"];
 
 function emptyHoleStat(hole_id: number): HoleStatIn {
   return {
@@ -224,6 +229,154 @@ function BeerEntry({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// Nicotine logging for a hole: pick a type + quantity; added items listed.
+function NicotineEntry({
+  items,
+  onChange,
+}: {
+  items: HoleStatIn["nicotine"];
+  onChange: (n: HoleStatIn["nicotine"]) => void;
+}) {
+  const [type, setType] = useState("pouch");
+  const [qty, setQty] = useState(1);
+  return (
+    <div>
+      <div className="mb-1 text-sm font-medium">Nicotine</div>
+      {items.length > 0 && (
+        <ul className="mb-2 space-y-1">
+          {items.map((n, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded bg-fairway-light px-3 py-1 text-sm"
+            >
+              <span>
+                {nicotineLabel(n.type)}: {n.quantity}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                className="text-gray-500 hover:text-red-600"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className="input w-auto flex-none"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+        >
+          {NIC_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {nicotineLabel(t)}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          min={1}
+          className="input w-20 flex-none"
+          value={qty}
+          onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+        />
+        <button
+          type="button"
+          onClick={() => onChange([...items, { type, quantity: qty }])}
+          className="btn-primary"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Weed logging for a hole: pick a type + amount + unit (g / mg / hits).
+function WeedEntry({
+  items,
+  onChange,
+}: {
+  items: HoleStatIn["weed"];
+  onChange: (w: HoleStatIn["weed"]) => void;
+}) {
+  const [type, setType] = useState("joint");
+  const [amount, setAmount] = useState("");
+  const [unit, setUnit] = useState("g");
+  function add() {
+    onChange([
+      ...items,
+      { type, amount: amount === "" ? null : Number(amount), unit },
+    ]);
+    setAmount("");
+  }
+  return (
+    <div>
+      <div className="mb-1 text-sm font-medium">Weed</div>
+      {items.length > 0 && (
+        <ul className="mb-2 space-y-1">
+          {items.map((w, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded bg-fairway-light px-3 py-1 text-sm"
+            >
+              <span>
+                {weedLabel(w.type)}
+                {w.amount != null ? ` · ${w.amount} ${w.unit ?? ""}` : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                className="text-gray-500 hover:text-red-600"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className="input w-auto flex-none"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+        >
+          {WEED_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {weedLabel(t)}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          step="0.1"
+          min={0}
+          placeholder="amt"
+          className="input w-20 flex-none"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+        <select
+          className="input w-auto flex-none"
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+        >
+          {WEED_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={add} className="btn-primary">
+          Add
+        </button>
+      </div>
     </div>
   );
 }
@@ -540,6 +693,11 @@ export default function NewRoundPage() {
           beers={s.beers}
           onChange={(b) => patch(current, { beers: b })}
         />
+        <NicotineEntry
+          items={s.nicotine}
+          onChange={(n) => patch(current, { nicotine: n })}
+        />
+        <WeedEntry items={s.weed} onChange={(w) => patch(current, { weed: w })} />
       </div>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
