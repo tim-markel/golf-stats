@@ -41,7 +41,16 @@ export interface CourseDetail extends Course {
 }
 
 export type DrivingAccuracy = "fairway" | "left" | "right" | "short" | "long";
-export type ApproachAccuracy = "short" | "long" | "left" | "right" | "on";
+export type ApproachAccuracy =
+  | "on"
+  | "short"
+  | "long"
+  | "left"
+  | "right"
+  | "long_left"
+  | "short_left"
+  | "long_right"
+  | "short_right";
 export type PenaltyStroke = "off_tee" | "approach";
 export type Hazard =
   | "water"

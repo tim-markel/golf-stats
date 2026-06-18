@@ -139,7 +139,8 @@ CREATE TABLE hole_stats (
                          ('fairway', 'left', 'right', 'short', 'long')),
     gir             BOOLEAN,                                -- green in regulation
     approach_accuracy TEXT CHECK (approach_accuracy IN
-                         ('short', 'long', 'left', 'right', 'on')),
+                         ('on', 'short', 'long', 'left', 'right',
+                          'long_left', 'short_left', 'long_right', 'short_right')),
     up_and_down     BOOLEAN,
 
     -- Penalty stroke: NULL = none; otherwise where it happened (the y/n + where).

@@ -62,7 +62,16 @@ function ScoreMark({
 }
 
 // --- check / x / directional-arrow marks for the hole cards -------------------
-const ARROWS: Record<string, string> = { left: "←", right: "→", short: "↓", long: "↑" };
+const ARROWS: Record<string, string> = {
+  left: "←",
+  right: "→",
+  short: "↓",
+  long: "↑",
+  long_left: "↖",
+  long_right: "↗",
+  short_left: "↙",
+  short_right: "↘",
+};
 
 function Mark({ symbol, tone }: { symbol: string; tone: "good" | "bad" | "muted" }) {
   const cls =

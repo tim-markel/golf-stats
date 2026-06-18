@@ -7,7 +7,10 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 DrivingAccuracy = Literal["fairway", "left", "right", "short", "long"]
-ApproachAccuracy = Literal["short", "long", "left", "right", "on"]
+ApproachAccuracy = Literal[
+    "on", "short", "long", "left", "right",
+    "long_left", "short_left", "long_right", "short_right",
+]
 PenaltyStroke = Literal["off_tee", "approach"]
 Hazard = Literal["water", "greenside_bunker", "fairway_bunker", "natural_area", "ob"]
 

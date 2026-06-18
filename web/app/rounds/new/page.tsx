@@ -621,10 +621,14 @@ export default function NewRoundPage() {
             onChange={(v) => patch(current, { approach_accuracy: v })}
             options={[
               { label: "On", value: "on" },
-              { label: "Short", value: "short" },
               { label: "Long", value: "long" },
+              { label: "Short", value: "short" },
               { label: "Left", value: "left" },
               { label: "Right", value: "right" },
+              { label: "Long Left", value: "long_left" },
+              { label: "Long Right", value: "long_right" },
+              { label: "Short Left", value: "short_left" },
+              { label: "Short Right", value: "short_right" },
             ]}
           />
         </div>
