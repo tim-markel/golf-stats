@@ -14,6 +14,7 @@ const STORAGE_KEY = "activeGolferId";
 interface GolferCtx {
   golfers: Golfer[];
   active: Golfer | null;
+  ready: boolean; // true once the initial load has finished
   setActive: (id: number | null) => void;
   refresh: () => Promise<Golfer[]>;
   updateActive: (patch: { name?: string; handicap?: number | null }) => Promise<void>;
@@ -24,6 +25,7 @@ const Ctx = createContext<GolferCtx | null>(null);
 export function GolferProvider({ children }: { children: ReactNode }) {
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [ready, setReady] = useState(false);
 
   async function refresh(): Promise<Golfer[]> {
     try {
@@ -45,6 +47,7 @@ export function GolferProvider({ children }: { children: ReactNode }) {
       } else if (gs.length > 0) {
         setActive(gs[0].golfer_id); // default to the first golfer
       }
+      setReady(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -65,7 +68,7 @@ export function GolferProvider({ children }: { children: ReactNode }) {
   const active = golfers.find((g) => g.golfer_id === activeId) ?? null;
 
   return (
-    <Ctx.Provider value={{ golfers, active, setActive, refresh, updateActive }}>
+    <Ctx.Provider value={{ golfers, active, ready, setActive, refresh, updateActive }}>
       {children}
     </Ctx.Provider>
   );

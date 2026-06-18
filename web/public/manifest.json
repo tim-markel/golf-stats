@@ -1,6 +1,6 @@
 {
-  "name": "golf-stats",
-  "short_name": "golf-stats",
+  "name": "People's Golf",
+  "short_name": "People's Golf",
   "description": "Track and visualize your golf game, hole by hole.",
   "start_url": "/",
   "display": "standalone",

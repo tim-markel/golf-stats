@@ -24,7 +24,7 @@ function GearIcon() {
 }
 
 export default function SettingsMenu() {
-  const { golfers, active, setActive, updateActive } = useGolfer();
+  const { active, updateActive } = useGolfer();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<null | "name" | "handicap">(null);
   const [nameVal, setNameVal] = useState("");
@@ -171,34 +171,18 @@ export default function SettingsMenu() {
                 )}
               </>
             ) : (
-              <div className="px-4 py-3 text-sm text-gray-500">
-                No golfer selected. Pick one below or add one on the home page.
-              </div>
+              <div className="px-4 py-3 text-sm text-gray-500">No golfer selected.</div>
             )}
 
-            {/* golfer switcher */}
-            {golfers.length > 0 && (
-              <div className="border-t py-1">
-                <div className="px-4 py-1 text-xs uppercase tracking-wide text-gray-400">
-                  Switch golfer
-                </div>
-                {golfers.map((g) => (
-                  <button
-                    key={g.golfer_id}
-                    onClick={() => {
-                      setActive(g.golfer_id);
-                      setEditing(null);
-                    }}
-                    className={`block w-full px-4 py-1.5 text-left text-sm hover:bg-fairway-light ${
-                      g.golfer_id === active?.golfer_id ? "font-semibold text-fairway" : ""
-                    }`}
-                  >
-                    {g.golfer_id === active?.golfer_id ? "✓ " : ""}
-                    {g.name}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="border-t py-1">
+              <Link
+                href="/golfers"
+                onClick={() => setOpen(false)}
+                className="block w-full px-4 py-2 text-left text-sm hover:bg-fairway-light"
+              >
+                🔁 Change or create golfer
+              </Link>
+            </div>
           </div>
         </>
       )}
