@@ -241,6 +241,7 @@ function HoleCard({ h }: { h: ScorecardHole }) {
   // each metric on its own line; nicotine/weed broken down by type
   const sub: string[] = [];
   if (h.beers) sub.push(`Beers: ${h.beers}`);
+  if (h.hotdogs) sub.push(`Hotdogs: ${h.hotdogs}`);
   if (h.nicotine.length)
     sub.push(h.nicotine.map((n) => `${nicotineLabel(n.type)}: ${n.quantity}`).join(" | "));
   if (h.weed.length)
@@ -663,6 +664,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
           )}
           {t.nicotine > 0 && <Summary label="Nicotine" value={String(t.nicotine)} />}
           {t.weed > 0 && <Summary label="Weed" value={String(t.weed)} />}
+          {t.hotdogs > 0 && <Summary label="Hotdogs" value={String(t.hotdogs)} />}
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

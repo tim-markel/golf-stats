@@ -96,6 +96,7 @@ export interface HoleStatIn {
   penalty_strokes: number;
   hazards_hit: Hazard[];
   balls_lost: number;
+  hotdogs: number;
   nicotine: { type: string; quantity: number }[];
   weed: { type: string; amount: number | null; unit: string | null }[];
   beers: BeerIn[];
@@ -139,6 +140,48 @@ export interface GolferStats {
   rounds: RoundSummary[];
 }
 
+export interface LeaderboardGolfer {
+  golfer_id: number;
+  name: string;
+  rounds_played: number;
+  handicap_index: number | null;
+  avg_score: number | null;
+  avg_putts: number | null;
+  gir_pct: number | null;
+  fairway_pct: number | null;
+}
+
+export interface CourseTopScore {
+  golfer_id: number;
+  name: string;
+  score: number;
+  played_on: string;
+  holes_played: number;
+}
+
+export interface CourseLeaderboard {
+  course_id: number;
+  course_name: string;
+  holes_count: number;
+  top: CourseTopScore[];
+}
+
+export interface ViceRow {
+  golfer_id: number;
+  name: string;
+  total: number;
+  detail: string | null;
+}
+
+export interface Leaderboard {
+  golfers: LeaderboardGolfer[];
+  courses: CourseLeaderboard[];
+  beers: ViceRow[];
+  nicotine: ViceRow[];
+  weed: ViceRow[];
+  hotdogs: ViceRow[];
+}
+
 export interface ScorecardHole {
   hole_id: number;
   hole_number: number;
@@ -155,6 +198,7 @@ export interface ScorecardHole {
   hazards_hit: string[];
   balls_lost: number;
   beers: number;
+  hotdogs: number;
   nicotine: { type: string; quantity: number }[];
   weed: { type: string; count: number; hits: number }[];
 }
@@ -197,6 +241,7 @@ export interface RoundTotals {
   beer_oz: number;
   nicotine: number;
   weed: number;
+  hotdogs: number;
 }
 
 export interface RoundDetail {
@@ -249,6 +294,7 @@ export const api = {
   updateGolfer: (id: number, b: { name?: string; handicap?: number | null }) =>
     patch<Golfer>(`/golfers/${id}`, b),
   golferStats: (id: number) => get<GolferStats>(`/golfers/${id}/stats`),
+  leaderboard: () => get<Leaderboard>("/leaderboard"),
   listCourses: () => get<Course[]>("/courses"),
   getCourse: (id: number) => get<CourseDetail>(`/courses/${id}`),
   listBeers: () => get<Beer[]>("/beers"),

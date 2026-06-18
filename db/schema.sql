@@ -156,6 +156,7 @@ CREATE TABLE hole_stats (
                         ]),
 
     balls_lost      SMALLINT    NOT NULL DEFAULT 0 CHECK (balls_lost >= 0),
+    hotdogs         SMALLINT    NOT NULL DEFAULT 0 CHECK (hotdogs >= 0),
     -- beers consumed live in hole_beer (name + size); see below.
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -105,6 +105,7 @@ class HoleStatIn(BaseModel):
     penalty_strokes: int = 0
     hazards_hit: list[Hazard] = Field(default_factory=list)
     balls_lost: int = 0
+    hotdogs: int = 0
     nicotine: list[NicotineIn] = Field(default_factory=list)
     weed: list[WeedIn] = Field(default_factory=list)
     beers: list[BeerIn] = Field(default_factory=list)
@@ -153,6 +154,49 @@ class GolferStats(BaseModel):
     rounds: list[RoundSummary] = []
 
 
+# --- leaderboard -----------------------------------------------------------
+class LeaderboardGolfer(BaseModel):
+    golfer_id: int
+    name: str
+    rounds_played: int
+    handicap_index: Optional[float] = None
+    avg_score: Optional[float] = None
+    avg_putts: Optional[float] = None
+    gir_pct: Optional[float] = None
+    fairway_pct: Optional[float] = None
+
+
+class CourseTopScore(BaseModel):
+    golfer_id: int
+    name: str
+    score: int
+    played_on: date
+    holes_played: int
+
+
+class CourseLeaderboard(BaseModel):
+    course_id: int
+    course_name: str
+    holes_count: int
+    top: list[CourseTopScore] = []
+
+
+class ViceRow(BaseModel):
+    golfer_id: int
+    name: str
+    total: float
+    detail: Optional[str] = None
+
+
+class Leaderboard(BaseModel):
+    golfers: list[LeaderboardGolfer] = []
+    courses: list[CourseLeaderboard] = []
+    beers: list[ViceRow] = []
+    nicotine: list[ViceRow] = []
+    weed: list[ViceRow] = []
+    hotdogs: list[ViceRow] = []
+
+
 # --- round detail / scorecard ----------------------------------------------
 class HoleNicotine(BaseModel):
     type: str
@@ -182,6 +226,7 @@ class ScorecardHole(BaseModel):
     balls_lost: int = 0
     # per-hole consumption
     beers: int = 0
+    hotdogs: int = 0
     nicotine: list[HoleNicotine] = Field(default_factory=list)
     weed: list[HoleWeed] = Field(default_factory=list)
 
@@ -204,6 +249,7 @@ class RoundTotals(BaseModel):
     beer_oz: float = 0
     nicotine: int = 0
     weed: int = 0
+    hotdogs: int = 0
 
 
 class RoundDetail(BaseModel):

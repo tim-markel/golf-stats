@@ -44,6 +44,7 @@ function emptyHoleStat(hole_id: number): HoleStatIn {
     penalty_strokes: 0,
     hazards_hit: [],
     balls_lost: 0,
+    hotdogs: 0,
     nicotine: [],
     weed: [],
     beers: [],
@@ -1006,6 +1007,12 @@ export default function NewRoundPage() {
           label="Balls lost"
           value={s.balls_lost}
           onChange={(v) => patch(current, { balls_lost: v })}
+          min={1}
+        />
+        <CountChoice
+          label="Hotdogs"
+          value={s.hotdogs}
+          onChange={(v) => patch(current, { hotdogs: v })}
           min={1}
         />
         <BeerEntry

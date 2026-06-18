@@ -99,9 +99,10 @@ export default function AboutPage() {
           <Feature name="Putts / Balls lost">0–4+ selectors.</Feature>
           <Feature name="Penalty">location (off tee / approach, multi-select) + a stroke count.</Feature>
           <Feature name="Hazards">water, greenside/fairway bunker, natural area, OB (multi-select).</Feature>
-          <Feature name="Beer / Nicotine / Weed">
-            searchable pickers — log type and amount (beers add new ones to a
-            shared catalog via &quot;Other&quot;).
+          <Feature name="Consumption">
+            log beers, hotdogs, nicotine, and weed — searchable pickers for type
+            and amount (beers add new ones to a shared catalog via &quot;Other&quot;;
+            hotdogs are a simple count).
           </Feature>
         </ul>
       </Section>
