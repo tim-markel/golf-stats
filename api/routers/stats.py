@@ -43,11 +43,14 @@ def golfer_stats(golfer_id: int):
         ).fetchall()
 
     n = len(rounds)
-    scored = [r for r in rounds if r["total_score"] is not None]
+    # Score/putts totals only compare across full 18-hole rounds, so exclude
+    # 9-hole (or otherwise partial) rounds from those averages.
+    full18 = [r for r in rounds if r["holes_played"] == 18]
+    scored = [r for r in full18 if r["total_score"] is not None]
     avg_score = (
         sum(r["total_score"] for r in scored) / len(scored) if scored else None
     )
-    putted = [r for r in rounds if r["total_putts"] is not None]
+    putted = [r for r in full18 if r["total_putts"] is not None]
     avg_putts = (
         sum(r["total_putts"] for r in putted) / len(putted) if putted else None
     )
