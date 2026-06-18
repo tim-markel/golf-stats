@@ -1,6 +1,8 @@
 """Round entry: create a round with its hole-by-hole stats in one transaction."""
 from __future__ import annotations
 
+from collections import defaultdict
+
 from fastapi import APIRouter, HTTPException
 
 from ..db import pool
@@ -113,10 +115,7 @@ def get_round(round_id: int):
                    hs.score, hs.putts, hs.driving_accuracy, hs.gir,
                    hs.approach_accuracy, hs.up_and_down, hs.penalty_stroke,
                    hs.hazards_hit, hs.balls_lost,
-                   (SELECT COUNT(*) FROM hole_beer hb WHERE hb.hole_stat_id = hs.id) AS beers,
-                   (SELECT COALESCE(SUM(hn.quantity), 0) FROM hole_nicotine hn
-                        WHERE hn.hole_stat_id = hs.id) AS nicotine,
-                   (SELECT COUNT(*) FROM hole_weed hw WHERE hw.hole_stat_id = hs.id) AS weed
+                   (SELECT COUNT(*) FROM hole_beer hb WHERE hb.hole_stat_id = hs.id) AS beers
             FROM hole_stats hs
             JOIN holes h ON h.id = hs.hole_id
             LEFT JOIN hole_tees ht ON ht.hole_id = h.id AND ht.tee_id = %s
@@ -124,6 +123,18 @@ def get_round(round_id: int):
             ORDER BY h.hole_number
             """,
             (rnd["tee_id"], round_id),
+        ).fetchall()
+
+        # Per-hole nicotine/weed broken down by type.
+        nic_rows = conn.execute(
+            "SELECT hs.hole_id, hn.type, hn.quantity FROM hole_nicotine hn "
+            "JOIN hole_stats hs ON hs.id = hn.hole_stat_id WHERE hs.round_id = %s",
+            (round_id,),
+        ).fetchall()
+        weed_rows = conn.execute(
+            "SELECT hs.hole_id, hw.type, hw.amount, hw.unit FROM hole_weed hw "
+            "JOIN hole_stats hs ON hs.id = hw.hole_stat_id WHERE hs.round_id = %s",
+            (round_id,),
         ).fetchall()
 
         # Round-level totals for the consumption summary.
@@ -160,6 +171,26 @@ def get_round(round_id: int):
             """,
             (round_id,),
         ).fetchone()
+
+    # group per-hole nicotine/weed by type
+    nic_by_hole: dict = defaultdict(lambda: defaultdict(int))
+    for r in nic_rows:
+        nic_by_hole[r["hole_id"]][r["type"]] += r["quantity"]
+    weed_by_hole: dict = defaultdict(lambda: defaultdict(lambda: {"count": 0, "hits": 0.0}))
+    for r in weed_rows:
+        e = weed_by_hole[r["hole_id"]][r["type"]]
+        e["count"] += 1
+        if r["unit"] == "hits" and r["amount"]:
+            e["hits"] += float(r["amount"])
+    for h in holes:
+        h["nicotine"] = [
+            {"type": t, "quantity": q}
+            for t, q in nic_by_hole.get(h["hole_id"], {}).items()
+        ]
+        h["weed"] = [
+            {"type": t, "count": v["count"], "hits": v["hits"]}
+            for t, v in weed_by_hole.get(h["hole_id"], {}).items()
+        ]
 
     def total(rows, lo, hi):
         vals = [r["score"] for r in rows if r["score"] is not None and lo <= r["hole_number"] <= hi]

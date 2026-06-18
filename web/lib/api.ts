@@ -144,8 +144,24 @@ export interface ScorecardHole {
   hazards_hit: string[];
   balls_lost: number;
   beers: number;
-  nicotine: number;
-  weed: number;
+  nicotine: { type: string; quantity: number }[];
+  weed: { type: string; count: number; hits: number }[];
+}
+
+// Friendly labels for the per-hole consumption breakdowns.
+export function nicotineLabel(type: string): string {
+  return (
+    { cigarette: "Cigs", cigar: "Cigars", vape: "Vape", dip: "Dip", pouch: "Zyns", gum: "Gum" }[
+      type
+    ] ?? type.charAt(0).toUpperCase() + type.slice(1)
+  );
+}
+export function weedLabel(type: string): string {
+  return (
+    { joint: "Joint", blunt: "Blunt", bowl: "Bowl", vape: "Vape", dab: "Dab", edible: "Edible" }[
+      type
+    ] ?? type.charAt(0).toUpperCase() + type.slice(1)
+  );
 }
 
 export interface HoleScoreUpdate {

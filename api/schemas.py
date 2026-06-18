@@ -149,6 +149,17 @@ class GolferStats(BaseModel):
 
 
 # --- round detail / scorecard ----------------------------------------------
+class HoleNicotine(BaseModel):
+    type: str
+    quantity: int
+
+
+class HoleWeed(BaseModel):
+    type: str
+    count: int       # number of entries of this type
+    hits: float = 0  # total when logged in "hits" (e.g. vape hits)
+
+
 class ScorecardHole(BaseModel):
     hole_id: int
     hole_number: int
@@ -164,10 +175,10 @@ class ScorecardHole(BaseModel):
     penalty_stroke: Optional[str] = None
     hazards_hit: list[str] = Field(default_factory=list)
     balls_lost: int = 0
-    # per-hole consumption counts
+    # per-hole consumption
     beers: int = 0
-    nicotine: int = 0
-    weed: int = 0
+    nicotine: list[HoleNicotine] = Field(default_factory=list)
+    weed: list[HoleWeed] = Field(default_factory=list)
 
 
 class HoleScoreUpdate(BaseModel):

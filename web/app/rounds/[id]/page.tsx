@@ -10,7 +10,14 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { api, hazardLabel, RoundDetail, ScorecardHole } from "@/lib/api";
+import {
+  api,
+  hazardLabel,
+  nicotineLabel,
+  RoundDetail,
+  ScorecardHole,
+  weedLabel,
+} from "@/lib/api";
 
 // --- score markers: birdie=1 circle, eagle=2 circles, bogey=1 square, dbl+=2 ---
 function ScoreMark({
@@ -220,10 +227,19 @@ function HoleCard({ h }: { h: ScorecardHole }) {
     hb.push(`Hazard: ${h.hazards_hit.map((z) => hazardLabel(z, true)).join(", ")}`);
   if (h.balls_lost) hb.push(`Balls lost: ${h.balls_lost}`);
 
+  // each metric on its own line; nicotine/weed broken down by type
   const sub: string[] = [];
   if (h.beers) sub.push(`Beers: ${h.beers}`);
-  if (h.nicotine) sub.push(`Nicotine: ${h.nicotine}`);
-  if (h.weed) sub.push(`Weed: ${h.weed}`);
+  if (h.nicotine.length)
+    sub.push(h.nicotine.map((n) => `${nicotineLabel(n.type)}: ${n.quantity}`).join(" | "));
+  if (h.weed.length)
+    sub.push(
+      h.weed
+        .map((w) =>
+          w.hits > 0 ? `${weedLabel(w.type)} hits: ${w.hits}` : `${weedLabel(w.type)}s: ${w.count}`
+        )
+        .join(" | ")
+    );
 
   return (
     <div className="card overflow-hidden text-ink">
@@ -267,9 +283,13 @@ function HoleCard({ h }: { h: ScorecardHole }) {
         </div>
       )}
 
-      {/* substances on the next row */}
+      {/* beers / nicotine / weed, each on its own line */}
       {sub.length > 0 && (
-        <div className="px-3 py-1.5 text-center text-xs">{sub.join(" · ")}</div>
+        <div className="space-y-0.5 px-3 py-1.5 text-center text-xs">
+          {sub.map((line) => (
+            <div key={line}>{line}</div>
+          ))}
+        </div>
       )}
     </div>
   );
