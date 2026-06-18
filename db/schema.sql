@@ -183,7 +183,7 @@ CREATE TABLE hole_weed (
     hole_stat_id    BIGINT      NOT NULL REFERENCES hole_stats (id) ON DELETE CASCADE,
     -- edit the allowed set to taste:
     type            TEXT        NOT NULL CHECK (type IN
-                         ('joint', 'blunt', 'bowl', 'vape', 'dab', 'edible')),
+                         ('joint', 'blunt', 'bowl', 'one_hitter', 'vape', 'dab', 'edible')),
     amount          NUMERIC(6,2),                           -- quantity in `unit`
     unit            TEXT        CHECK (unit IN ('g', 'mg', 'hits'))
 );

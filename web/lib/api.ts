@@ -168,7 +168,15 @@ export function nicotineLabel(type: string): string {
 }
 export function weedLabel(type: string): string {
   return (
-    { joint: "Joint", blunt: "Blunt", bowl: "Bowl", vape: "Vape", dab: "Dab", edible: "Edible" }[
+    {
+      joint: "Joint",
+      blunt: "Blunt",
+      bowl: "Bowl",
+      one_hitter: "One Hitter",
+      vape: "Vape",
+      dab: "Dab",
+      edible: "Edible",
+    }[
       type
     ] ?? type.charAt(0).toUpperCase() + type.slice(1)
   );

@@ -28,7 +28,7 @@ const HAZARDS: Hazard[] = [
 ];
 const BEER_SIZES = [12, 16, 19.2, 7, 22, 25];
 const NIC_TYPES = ["cigarette", "cigar", "vape", "dip", "pouch", "gum"];
-const WEED_TYPES = ["joint", "blunt", "bowl", "vape", "dab", "edible"];
+const WEED_TYPES = ["joint", "blunt", "bowl", "one_hitter", "vape", "dab", "edible"];
 const WEED_UNITS = ["g", "mg", "hits"];
 
 function emptyHoleStat(hole_id: number): HoleStatIn {
@@ -736,16 +736,7 @@ export default function NewRoundPage() {
     setStarted(true);
   }
 
-  // When advancing a hole, default its score to par if it wasn't touched.
-  function defaultScore(i: number) {
-    setStats((prev) =>
-      prev.map((s, idx) =>
-        idx === i && s.score == null ? { ...s, score: roundHoles[idx].par } : s
-      )
-    );
-  }
   function goNext() {
-    defaultScore(current);
     setCurrent((c) => c + 1);
   }
 
@@ -754,12 +745,6 @@ export default function NewRoundPage() {
     setSubmitting(true);
     setError(null);
     try {
-      // default the final hole's score to par too if it wasn't set
-      const finalStats = stats.map((s, idx) =>
-        idx === current && s.score == null
-          ? { ...s, score: roundHoles[idx].par }
-          : s
-      );
       await api.createRound({
         golfer_id: golferId,
         course_id: courseId,
@@ -767,7 +752,7 @@ export default function NewRoundPage() {
         played_on: playedOn,
         time_of_day: timeOfDay,
         round_duration: null,
-        hole_stats: finalStats,
+        hole_stats: stats,
       });
       router.push(`/golfers/${golferId}`);
     } catch (e) {
@@ -1046,7 +1031,7 @@ export default function NewRoundPage() {
         {isLast ? (
           <button
             type="button"
-            disabled={submitting}
+            disabled={submitting || s.score == null}
             onClick={submit}
             className="btn-primary flex-1 py-3"
           >
@@ -1055,6 +1040,7 @@ export default function NewRoundPage() {
         ) : (
           <button
             type="button"
+            disabled={s.score == null}
             onClick={goNext}
             className="btn-primary flex-1 py-3"
           >
@@ -1062,6 +1048,9 @@ export default function NewRoundPage() {
           </button>
         )}
       </div>
+      {s.score == null && (
+        <p className="text-center text-xs text-gray-500">Select a score to continue.</p>
+      )}
     </div>
   );
 }
