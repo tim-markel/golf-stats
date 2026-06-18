@@ -92,7 +92,8 @@ export interface HoleStatIn {
   gir: boolean | null;
   approach_accuracy: ApproachAccuracy | null;
   up_and_down: boolean | null;
-  penalty_stroke: PenaltyStroke | null;
+  penalty_locations: PenaltyStroke[];
+  penalty_strokes: number;
   hazards_hit: Hazard[];
   balls_lost: number;
   nicotine: { type: string; quantity: number }[];
@@ -149,7 +150,7 @@ export interface ScorecardHole {
   gir: boolean | null;
   approach_accuracy: string | null;
   up_and_down: boolean | null;
-  penalty_stroke: string | null;
+  penalty_locations: string[];
   hazards_hit: string[];
   balls_lost: number;
   beers: number;
@@ -182,6 +183,7 @@ export interface HoleScoreUpdate {
 export interface RoundTotals {
   hazards: number;
   balls_lost: number;
+  penalty_strokes: number;
   beers: number;
   beer_oz: number;
   nicotine: number;

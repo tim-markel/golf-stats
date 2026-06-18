@@ -35,18 +35,18 @@ def create_round(body: RoundIn):
                     """
                     INSERT INTO hole_stats (
                         round_id, hole_id, score, putts, driving_accuracy, gir,
-                        approach_accuracy, up_and_down, penalty_stroke,
-                        hazards_hit, balls_lost
+                        approach_accuracy, up_and_down, penalty_locations,
+                        penalty_strokes, hazards_hit, balls_lost
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     RETURNING id
                     """,
                     (
                         round_id, hs.hole_id, hs.score, hs.putts,
                         hs.driving_accuracy, hs.gir, hs.approach_accuracy,
-                        hs.up_and_down, hs.penalty_stroke, hs.hazards_hit,
-                        hs.balls_lost,
+                        hs.up_and_down, hs.penalty_locations, hs.penalty_strokes,
+                        hs.hazards_hit, hs.balls_lost,
                     ),
                 ).fetchone()
                 hole_stat_id = stat_row["id"]
@@ -113,7 +113,7 @@ def get_round(round_id: int):
             """
             SELECT h.id AS hole_id, h.hole_number, h.par, h.stroke_index, ht.yards,
                    hs.score, hs.putts, hs.driving_accuracy, hs.gir,
-                   hs.approach_accuracy, hs.up_and_down, hs.penalty_stroke,
+                   hs.approach_accuracy, hs.up_and_down, hs.penalty_locations,
                    hs.hazards_hit, hs.balls_lost,
                    (SELECT COUNT(*) FROM hole_beer hb WHERE hb.hole_stat_id = hs.id) AS beers
             FROM hole_stats hs
@@ -142,7 +142,8 @@ def get_round(round_id: int):
             """
             SELECT
                 COALESCE(SUM(COALESCE(array_length(hazards_hit, 1), 0)), 0) AS hazards,
-                COALESCE(SUM(balls_lost), 0) AS balls_lost
+                COALESCE(SUM(balls_lost), 0) AS balls_lost,
+                COALESCE(SUM(penalty_strokes), 0) AS penalty_strokes
             FROM hole_stats WHERE round_id = %s
             """,
             (round_id,),
@@ -208,6 +209,7 @@ def get_round(round_id: int):
         "totals": {
             "hazards": agg["hazards"],
             "balls_lost": agg["balls_lost"],
+            "penalty_strokes": agg["penalty_strokes"],
             "beers": beers["beers"],
             "beer_oz": float(beers["beer_oz"]),
             "nicotine": nic["nicotine"],

@@ -101,7 +101,8 @@ class HoleStatIn(BaseModel):
     gir: Optional[bool] = None
     approach_accuracy: Optional[ApproachAccuracy] = None
     up_and_down: Optional[bool] = None
-    penalty_stroke: Optional[PenaltyStroke] = None
+    penalty_locations: list[PenaltyStroke] = Field(default_factory=list)
+    penalty_strokes: int = 0
     hazards_hit: list[Hazard] = Field(default_factory=list)
     balls_lost: int = 0
     nicotine: list[NicotineIn] = Field(default_factory=list)
@@ -175,7 +176,7 @@ class ScorecardHole(BaseModel):
     gir: Optional[bool] = None
     approach_accuracy: Optional[str] = None
     up_and_down: Optional[bool] = None
-    penalty_stroke: Optional[str] = None
+    penalty_locations: list[str] = Field(default_factory=list)
     hazards_hit: list[str] = Field(default_factory=list)
     balls_lost: int = 0
     # per-hole consumption
@@ -197,6 +198,7 @@ class RoundScoresUpdate(BaseModel):
 class RoundTotals(BaseModel):
     hazards: int = 0
     balls_lost: int = 0
+    penalty_strokes: int = 0
     beers: int = 0
     beer_oz: float = 0
     nicotine: int = 0

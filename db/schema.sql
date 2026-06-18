@@ -143,8 +143,10 @@ CREATE TABLE hole_stats (
                           'long_left', 'short_left', 'long_right', 'short_right')),
     up_and_down     BOOLEAN,
 
-    -- Penalty stroke: NULL = none; otherwise where it happened (the y/n + where).
-    penalty_stroke  TEXT CHECK (penalty_stroke IN ('off_tee', 'approach')),
+    -- Penalty: where it happened (one or both) + how many strokes on the hole.
+    penalty_locations TEXT[] NOT NULL DEFAULT '{}'
+                        CHECK (penalty_locations <@ ARRAY['off_tee', 'approach']),
+    penalty_strokes SMALLINT NOT NULL DEFAULT 0 CHECK (penalty_strokes >= 0),
 
     -- Hazards hit on the hole; empty array = none. A hole can hit several.
     hazards_hit     TEXT[]      NOT NULL DEFAULT '{}'
@@ -262,7 +264,7 @@ SELECT
     COUNT(*) FILTER (WHERE hs.driving_accuracy = 'fairway')   AS fairways_hit,
     COUNT(*) FILTER (WHERE hs.driving_accuracy IS NOT NULL)   AS driving_holes,
     COUNT(*) FILTER (WHERE hs.up_and_down)                    AS up_and_downs,
-    COUNT(*) FILTER (WHERE hs.penalty_stroke IS NOT NULL)     AS penalty_holes,
+    COUNT(*) FILTER (WHERE hs.penalty_strokes > 0)           AS penalty_holes,
     SUM(hs.balls_lost)                                        AS balls_lost,
     COALESCE(b.beers, 0)                                      AS beers_finished,
     COALESCE(b.beer_oz, 0)                                    AS beer_oz

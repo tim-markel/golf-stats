@@ -621,6 +621,9 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
           <Summary label="Fairways hit" value={`${fairwaysHit}/${fairwaysTotal}`} />
           {t.hazards > 0 && <Summary label="Hazards hit" value={String(t.hazards)} />}
           {t.balls_lost > 0 && <Summary label="Balls lost" value={String(t.balls_lost)} />}
+          {t.penalty_strokes > 0 && (
+            <Summary label="Penalty strokes" value={String(t.penalty_strokes)} />
+          )}
           {t.beers > 0 && (
             <Summary
               label="Beers"
