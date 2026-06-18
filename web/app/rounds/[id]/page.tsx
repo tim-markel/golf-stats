@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Cell,
@@ -344,6 +345,7 @@ function StatPie({
 
 export default function RoundScorecardPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
+  const router = useRouter();
   const [round, setRound] = useState<RoundDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -416,6 +418,13 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
 
   return (
     <div className="space-y-6">
+      <button
+        onClick={() => router.back()}
+        className="text-sm font-medium text-gray-500 hover:text-fairway"
+      >
+        ← Back
+      </button>
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{round.course_name}</h1>
