@@ -285,11 +285,30 @@ export default function NewRoundPage() {
     );
   }
 
+  // When advancing a hole, default its score to par if it wasn't touched.
+  function defaultScore(i: number) {
+    setStats((prev) =>
+      prev.map((s, idx) =>
+        idx === i && s.score == null ? { ...s, score: course!.holes[idx].par } : s
+      )
+    );
+  }
+  function goNext() {
+    defaultScore(current);
+    setCurrent((c) => c + 1);
+  }
+
   async function submit() {
     if (golferId == null || courseId == null) return;
     setSubmitting(true);
     setError(null);
     try {
+      // default the final hole's score to par too if it wasn't set
+      const finalStats = stats.map((s, idx) =>
+        idx === current && s.score == null
+          ? { ...s, score: course!.holes[idx].par }
+          : s
+      );
       await api.createRound({
         golfer_id: golferId,
         course_id: courseId,
@@ -297,7 +316,7 @@ export default function NewRoundPage() {
         played_on: playedOn,
         time_of_day: timeOfDay,
         round_duration: null,
-        hole_stats: stats,
+        hole_stats: finalStats,
       });
       router.push(`/golfers/${golferId}`);
     } catch (e) {
@@ -546,7 +565,7 @@ export default function NewRoundPage() {
         ) : (
           <button
             type="button"
-            onClick={() => setCurrent((c) => c + 1)}
+            onClick={goNext}
             className="btn-primary flex-1 py-3"
           >
             Next hole →
