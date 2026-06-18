@@ -136,9 +136,10 @@ def leaderboard():
     )
 
     # --- Total Ass Index ---------------------------------------------------
-    # Handicap + a per-round "ass" weight from each hole: penalty strokes and
-    # lost balls count 1 each; bunkers 0.25; natural area 0.25 (1.0 if a ball was
-    # lost there); water/OB 1.0; and 3+ putts add an escalating 0.3*(putts-2)^2.
+    # Handicap + a per-round "ass" weight from each hole: penalty strokes count
+    # 1.0 each, lost balls 0.5 each; bunkers 0.25; natural area 0.25 (0.5 if a
+    # ball was lost there); water/OB 0.5; and 3+ putts add an escalating
+    # 0.3*(putts-2)^2.
     acc = defaultdict(lambda: {"pen": 0, "balls": 0, "haz": 0, "tp": 0, "raw": 0.0})
     for row in hole_bad_rows:
         a = acc[row["golfer_id"]]
@@ -154,13 +155,13 @@ def leaderboard():
             if h in ("greenside_bunker", "fairway_bunker"):
                 weight += 0.25
             elif h == "natural_area":
-                weight += 1.0 if balls > 0 else 0.25
+                weight += 0.5 if balls > 0 else 0.25
             else:  # water, ob
-                weight += 1.0
+                weight += 0.5
         if putts and putts >= 3:
             a["tp"] += 1
             weight += 0.3 * (putts - 2) ** 2
-        a["raw"] += pen + balls + weight
+        a["raw"] += pen + 0.5 * balls + weight
 
     ass_index = []
     for g in golfers:

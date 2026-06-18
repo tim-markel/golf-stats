@@ -150,8 +150,7 @@ export default function AboutPage() {
       <Section title="🍑 Total Ass Index">
         <p>
           The Total Ass Index is a fun, unofficial measure of how messy — how
-          much of an &quot;ass&quot; — your golf is, not just what you score. Find
-          it on the Leaderboard.
+          &quot;ass&quot; — your golf game is, not just what you score.
         </p>
         <p className="pt-1 font-semibold text-ink">How it&apos;s calculated</p>
         <p>
@@ -159,15 +158,54 @@ export default function AboutPage() {
           built from the trouble you got into on each hole:
         </p>
         <ul className="list-disc space-y-1.5 pl-5">
-          <li>Penalty strokes and lost balls — <span className="font-semibold">1.0</span> each.</li>
-          <li>Water and OB — <span className="font-semibold">1.0</span> each.</li>
+          <li>Penalty strokes — <span className="font-semibold">1.0</span> each.</li>
+          <li>Lost balls — <span className="font-semibold">0.5</span> each.</li>
+          <li>Water and OB — <span className="font-semibold">0.5</span> each.</li>
           <li>Bunkers (greenside or fairway) — <span className="font-semibold">0.25</span> (a bunker isn&apos;t the end of the world).</li>
-          <li>Natural area — <span className="font-semibold">0.25</span>, but <span className="font-semibold">1.0</span> if you also lost a ball there.</li>
+          <li>Natural area — <span className="font-semibold">0.25</span>, but <span className="font-semibold">0.5</span> if you also lost a ball there.</li>
           <li>3+ putts — an escalating <code>0.3 × (putts − 2)²</code>, so a 3-putt stings a little, a 4- or 5-putt a lot more.</li>
         </ul>
         <p>
           Those are summed and divided by your rounds, then added to your
           handicap. <span className="font-semibold">Higher = more ass.</span>
+        </p>
+        <div className="my-2 overflow-x-auto rounded-lg border bg-gray-50 px-4 py-4">
+          <div className="flex items-center justify-center gap-2 whitespace-nowrap font-serif text-base italic text-ink">
+            <span>Ass</span>
+            <span className="not-italic">=</span>
+            <span>H</span>
+            <span className="not-italic">+</span>
+            <span className="inline-flex flex-col items-center leading-none">
+              <span className="px-1 text-sm">1</span>
+              <span className="border-t border-current px-1 text-sm">R</span>
+            </span>
+            <span className="inline-flex flex-col items-center px-0.5 not-italic leading-none">
+              <span className="text-[0.6rem] text-gray-500">holes</span>
+              <span className="text-2xl">Σ</span>
+            </span>
+            <span className="not-italic">(</span>
+            <span>P</span>
+            <span className="not-italic">+</span>
+            <span className="inline-flex flex-col items-center leading-none">
+              <span className="px-1 text-sm">1</span>
+              <span className="border-t border-current px-1 text-sm">2</span>
+            </span>
+            <span>L</span>
+            <span className="not-italic">+</span>
+            <span>Z</span>
+            <span className="not-italic">+</span>
+            <span>
+              0.3(p−2)<sup>2</sup>
+            </span>
+            <span className="not-italic">)</span>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          where <em>H</em> = handicap index, <em>R</em> = rounds played, Σ sums
+          over every hole, <em>P</em> = penalty strokes, <em>L</em> = lost balls,{" "}
+          <em>Z</em> = hazard weight (water/OB 0.5, bunkers 0.25, natural area
+          0.25, or 0.5 with a lost ball), and the putting term{" "}
+          <em>0.3(p−2)²</em> applies only when putts <em>p</em> ≥ 3.
         </p>
         <p className="pt-1 font-semibold text-ink">Why it&apos;s different from handicap</p>
         <p>
@@ -182,7 +220,7 @@ export default function AboutPage() {
           <span className="font-semibold">similar handicap</span>: two 12-handicaps
           can shoot the same score, but one quietly two-putts from the middle of
           the fairway while the other sprays it into hazards, loses balls, and
-          three-jacks — then somehow scrambles to the same number. Same handicap,
+          three-putts — then somehow scrambles to the same number. Same handicap,
           very different Ass Index. It surfaces the chaos a handicap hides.
         </p>
       </Section>

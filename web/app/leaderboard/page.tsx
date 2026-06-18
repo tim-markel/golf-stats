@@ -235,8 +235,8 @@ export default function LeaderboardPage() {
           </table>
         </div>
         <p className="mt-1 text-xs text-gray-400">
-          Handicap + per-round ass weight: penalties &amp; lost balls 1 each,
-          bunkers 0.25, natural area 0.25 (1 if a ball&apos;s lost), water/OB 1,
+          Handicap + per-round ass weight: penalty strokes 1, lost balls 0.5,
+          bunkers 0.25, natural area 0.25 (1 if a ball&apos;s lost), water/OB 0.5,
           and 3+ putts escalate. Higher = more ass.
         </p>
       </section>
