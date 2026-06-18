@@ -284,20 +284,37 @@ function Summary({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Ordered buckets + colors (good → bad) for the distribution pies.
+// Colorblind-friendly palette (Okabe-Ito).
+const CB = {
+  blue: "#0072B2",
+  green: "#009E73",
+  gray: "#999999",
+  orange: "#E69F00",
+  vermillion: "#D55E00",
+  purple: "#CC79A7",
+  sky: "#56B4E9",
+};
+
 const PUTT_DEFS = [
-  { name: "1 putt", color: "#1a7a4a" },
-  { name: "2 putts", color: "#86b049" },
-  { name: "3 putts", color: "#e0a93b" },
-  { name: "4+ putts", color: "#d1495b" },
+  { name: "1 putt", color: CB.green },
+  { name: "2 putts", color: CB.sky },
+  { name: "3 putts", color: CB.orange },
+  { name: "4+ putts", color: CB.vermillion },
 ];
 const SCORE_DEFS = [
-  { name: "Eagle+", color: "#0b3d2e" },
-  { name: "Birdie", color: "#1a7a4a" },
-  { name: "Par", color: "#9ca3af" },
-  { name: "Bogey", color: "#e0a93b" },
-  { name: "Double", color: "#d97706" },
-  { name: "Triple+", color: "#d1495b" },
+  { name: "Eagle+", color: CB.blue },
+  { name: "Birdie", color: CB.green },
+  { name: "Par", color: CB.gray },
+  { name: "Bogey", color: CB.orange },
+  { name: "Double", color: CB.vermillion },
+  { name: "Triple+", color: CB.purple },
+];
+const FAIRWAY_DEFS = [
+  { key: "fairway", name: "Fairway", color: CB.green },
+  { key: "left", name: "Left", color: CB.sky },
+  { key: "right", name: "Right", color: CB.blue },
+  { key: "short", name: "Short", color: CB.orange },
+  { key: "long", name: "Long", color: CB.purple },
 ];
 
 function buildPie(
@@ -320,14 +337,15 @@ function StatPie({
   return (
     <div className="card p-4">
       <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie
             data={data}
             dataKey="value"
             nameKey="name"
-            innerRadius={45}
-            outerRadius={78}
+            cx="38%"
+            innerRadius={26}
+            outerRadius={72}
             paddingAngle={2}
             stroke="none"
           >
@@ -336,7 +354,13 @@ function StatPie({
             ))}
           </Pie>
           <Tooltip />
-          <Legend iconType="circle" />
+          <Legend
+            layout="vertical"
+            align="right"
+            verticalAlign="middle"
+            iconType="circle"
+            wrapperStyle={{ fontSize: 12, lineHeight: "20px" }}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -390,6 +414,22 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   });
   const scorePie = buildPie(SCORE_DEFS, scoreCounts);
   const puttPie = buildPie(PUTT_DEFS, puttCounts);
+
+  // fairway-accuracy distribution: 5 options, each labeled with its percentage
+  const fwCounts: Record<string, number> = {};
+  round.holes.forEach((h) => {
+    if (h.par >= 4 && h.driving_accuracy)
+      fwCounts[h.driving_accuracy] = (fwCounts[h.driving_accuracy] || 0) + 1;
+  });
+  const fwRecorded = Object.values(fwCounts).reduce((a, b) => a + b, 0);
+  const fairwayPie =
+    fwRecorded === 0
+      ? []
+      : FAIRWAY_DEFS.map((d) => {
+          const v = fwCounts[d.key] || 0;
+          const pct = Math.round((v / fwRecorded) * 100);
+          return { name: `${d.name} ${pct}%`, value: v, color: d.color };
+        });
 
   function startEdit() {
     const d: Draft = {};
@@ -502,9 +542,10 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
           {t.weed > 0 && <Summary label="Weed" value={String(t.weed)} />}
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <StatPie title="Score distribution" data={scorePie} />
           <StatPie title="Putt distribution" data={puttPie} />
+          <StatPie title="Fairways" data={fairwayPie} />
         </div>
       </section>
     </div>
