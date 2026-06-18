@@ -43,7 +43,24 @@ export interface CourseDetail extends Course {
 export type DrivingAccuracy = "fairway" | "left" | "right" | "short" | "long";
 export type ApproachAccuracy = "short" | "long" | "left" | "right" | "on";
 export type PenaltyStroke = "off_tee" | "approach";
-export type Hazard = "water" | "bunker" | "natural_area";
+export type Hazard =
+  | "water"
+  | "greenside_bunker"
+  | "fairway_bunker"
+  | "natural_area"
+  | "ob";
+
+// Display label for a hazard value, e.g. "natural_area" -> "Natural Area", "ob" -> "OB".
+// Pass short=true for compact card labels ("GS Bunker", "FW Bunker").
+export function hazardLabel(z: string, short = false): string {
+  if (z === "ob") return "OB";
+  if (short && z === "greenside_bunker") return "GS Bunker";
+  if (short && z === "fairway_bunker") return "FW Bunker";
+  return z
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 export interface Beer {
   beer_id: number;
@@ -111,6 +128,56 @@ export interface GolferStats {
   rounds: RoundSummary[];
 }
 
+export interface ScorecardHole {
+  hole_id: number;
+  hole_number: number;
+  par: number;
+  stroke_index: number | null;
+  yards: number | null;
+  score: number | null;
+  putts: number | null;
+  driving_accuracy: string | null;
+  gir: boolean | null;
+  approach_accuracy: string | null;
+  up_and_down: boolean | null;
+  penalty_stroke: string | null;
+  hazards_hit: string[];
+  balls_lost: number;
+  beers: number;
+  nicotine: number;
+  weed: number;
+}
+
+export interface HoleScoreUpdate {
+  hole_id: number;
+  score: number | null;
+  putts: number | null;
+}
+
+export interface RoundTotals {
+  hazards: number;
+  balls_lost: number;
+  beers: number;
+  beer_oz: number;
+  nicotine: number;
+  weed: number;
+}
+
+export interface RoundDetail {
+  round_id: number;
+  played_on: string;
+  time_of_day: string | null;
+  round_duration: string | null;
+  course_name: string;
+  tee_name: string | null;
+  out_score: number | null;
+  in_score: number | null;
+  total_score: number | null;
+  total_putts: number | null;
+  holes: ScorecardHole[];
+  totals: RoundTotals;
+}
+
 // --- fetch helpers ---------------------------------------------------------
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
@@ -128,14 +195,29 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status}`);
+  return res.json();
+}
+
 export const api = {
   listGolfers: () => get<Golfer[]>("/golfers"),
   getGolfer: (id: number) => get<Golfer>(`/golfers/${id}`),
   createGolfer: (b: { name: string; handicap?: number | null; ghin_id?: string | null }) =>
     post<Golfer>("/golfers", b),
+  updateGolfer: (id: number, b: { name?: string; handicap?: number | null }) =>
+    patch<Golfer>(`/golfers/${id}`, b),
   golferStats: (id: number) => get<GolferStats>(`/golfers/${id}/stats`),
   listCourses: () => get<Course[]>("/courses"),
   getCourse: (id: number) => get<CourseDetail>(`/courses/${id}`),
   listBeers: () => get<Beer[]>("/beers"),
   createRound: (b: RoundIn) => post<{ round_id: number }>("/rounds", b),
+  getRound: (id: number) => get<RoundDetail>(`/rounds/${id}`),
+  updateRoundHoleStats: (id: number, holes: HoleScoreUpdate[]) =>
+    patch<RoundDetail>(`/rounds/${id}/hole-stats`, { holes }),
 };

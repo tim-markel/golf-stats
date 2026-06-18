@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 DrivingAccuracy = Literal["fairway", "left", "right", "short", "long"]
 ApproachAccuracy = Literal["short", "long", "left", "right", "on"]
 PenaltyStroke = Literal["off_tee", "approach"]
-Hazard = Literal["water", "bunker", "natural_area"]
+Hazard = Literal["water", "greenside_bunker", "fairway_bunker", "natural_area", "ob"]
 
 
 # --- golfers ---------------------------------------------------------------
@@ -21,6 +21,11 @@ class GolferIn(BaseModel):
 
 class Golfer(GolferIn):
     golfer_id: int
+
+
+class GolferUpdate(BaseModel):
+    name: Optional[str] = None
+    handicap: Optional[float] = None
 
 
 # --- courses (read-only here; populated by the scraper) --------------------
@@ -141,3 +146,59 @@ class GolferStats(BaseModel):
     gir_pct: Optional[float] = None
     fairway_pct: Optional[float] = None
     rounds: list[RoundSummary] = []
+
+
+# --- round detail / scorecard ----------------------------------------------
+class ScorecardHole(BaseModel):
+    hole_id: int
+    hole_number: int
+    par: int
+    stroke_index: Optional[int] = None
+    yards: Optional[int] = None
+    score: Optional[int] = None
+    putts: Optional[int] = None
+    driving_accuracy: Optional[str] = None
+    gir: Optional[bool] = None
+    approach_accuracy: Optional[str] = None
+    up_and_down: Optional[bool] = None
+    penalty_stroke: Optional[str] = None
+    hazards_hit: list[str] = Field(default_factory=list)
+    balls_lost: int = 0
+    # per-hole consumption counts
+    beers: int = 0
+    nicotine: int = 0
+    weed: int = 0
+
+
+class HoleScoreUpdate(BaseModel):
+    hole_id: int
+    score: Optional[int] = None
+    putts: Optional[int] = None
+
+
+class RoundScoresUpdate(BaseModel):
+    holes: list[HoleScoreUpdate]
+
+
+class RoundTotals(BaseModel):
+    hazards: int = 0
+    balls_lost: int = 0
+    beers: int = 0
+    beer_oz: float = 0
+    nicotine: int = 0
+    weed: int = 0
+
+
+class RoundDetail(BaseModel):
+    round_id: int
+    played_on: date
+    time_of_day: Optional[str] = None
+    round_duration: Optional[str] = None
+    course_name: str
+    tee_name: Optional[str] = None
+    out_score: Optional[int] = None
+    in_score: Optional[int] = None
+    total_score: Optional[int] = None
+    total_putts: Optional[int] = None
+    holes: list[ScorecardHole] = Field(default_factory=list)
+    totals: RoundTotals

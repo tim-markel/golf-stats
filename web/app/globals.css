@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer base {
+  body {
+    @apply text-ink antialiased;
+    background-color: #f5f6f2;
+    background-image: radial-gradient(
+      1200px 600px at 50% -240px,
+      #e9f1ea 0%,
+      transparent 60%
+    );
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-black/5 bg-white shadow-card;
+  }
+  .input {
+    @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-fairway focus:ring-2 focus:ring-fairway/15;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-fairway text-white shadow-sm hover:bg-fairway-dark;
+  }
+  .btn-ghost {
+    @apply btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50;
+  }
+  .chip {
+    @apply rounded-full border px-3 py-1 text-sm transition;
+  }
+  .chip-on {
+    @apply chip border-fairway bg-fairway text-white;
+  }
+  .chip-off {
+    @apply chip border-gray-300 bg-white text-gray-700 hover:border-fairway/40;
+  }
 }

@@ -11,11 +11,19 @@ import {
   DrivingAccuracy,
   Golfer,
   Hazard,
+  hazardLabel,
   HoleStatIn,
   PenaltyStroke,
 } from "@/lib/api";
+import Combobox from "@/components/Combobox";
 
-const HAZARDS: Hazard[] = ["water", "bunker", "natural_area"];
+const HAZARDS: Hazard[] = [
+  "water",
+  "greenside_bunker",
+  "fairway_bunker",
+  "natural_area",
+  "ob",
+];
 const BEER_SIZES = [12, 16, 19.2, 7, 22, 25];
 
 function emptyHoleStat(hole_id: number): HoleStatIn {
@@ -55,11 +63,7 @@ function Seg<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(active ? null : o.value)}
-            className={`rounded-full border px-3 py-1 text-sm ${
-              active
-                ? "border-fairway bg-fairway text-white"
-                : "border-gray-300 bg-white text-gray-700"
-            }`}
+            className={active ? "chip-on" : "chip-off"}
           >
             {o.label}
           </button>
@@ -171,23 +175,24 @@ function BeerEntry({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="rounded border px-2 py-1.5 text-sm"
-          value={pick}
-          onChange={(e) => setPick(e.target.value)}
-        >
-          <option value="">Choose a beer…</option>
-          {options.map((o) => (
-            <option key={o.beer_id} value={o.beer_id}>
-              {o.name}
-              {o.abv != null ? ` (${o.abv}%)` : ""}
-            </option>
-          ))}
-          <option value="other">Other…</option>
-        </select>
+        <div className="min-w-[200px] flex-1">
+          <Combobox
+            value={pick || null}
+            onChange={setPick}
+            placeholder="Choose a beer…"
+            options={[
+              ...options.map((o) => ({
+                value: String(o.beer_id),
+                label: o.name,
+                sublabel: o.abv != null ? `${o.abv}%` : undefined,
+              })),
+              { value: "other", label: "Other…" },
+            ]}
+          />
+        </div>
 
         <select
-          className="rounded border px-2 py-1.5 text-sm"
+          className="input w-auto flex-none"
           value={size}
           onChange={(e) => setSize(Number(e.target.value))}
         >
@@ -198,11 +203,7 @@ function BeerEntry({
           ))}
         </select>
 
-        <button
-          type="button"
-          onClick={add}
-          className="rounded bg-fairway px-3 py-1.5 text-sm font-medium text-white"
-        >
+        <button type="button" onClick={add} className="btn-primary">
           Add
         </button>
       </div>
@@ -309,78 +310,78 @@ export default function NewRoundPage() {
   if (!started) {
     const canStart = golferId != null && course != null;
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">New round</h1>
+      <div className="card space-y-4 p-5">
+        <h1 className="text-2xl font-bold tracking-tight">New round</h1>
 
-        <label className="block text-sm font-medium">Golfer</label>
-        <select
-          className="w-full rounded border px-3 py-2"
-          value={golferId ?? ""}
-          onChange={(e) => setGolferId(Number(e.target.value) || null)}
-        >
-          <option value="">Select a golfer…</option>
-          {golfers.map((g) => (
-            <option key={g.golfer_id} value={g.golfer_id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Golfer</label>
+          <Combobox
+            value={golferId != null ? String(golferId) : null}
+            onChange={(v) => setGolferId(Number(v))}
+            placeholder="Select a golfer…"
+            options={golfers.map((g) => ({
+              value: String(g.golfer_id),
+              label: g.name,
+            }))}
+          />
+        </div>
 
-        <label className="block text-sm font-medium">Course</label>
-        <select
-          className="w-full rounded border px-3 py-2"
-          value={courseId ?? ""}
-          onChange={(e) => setCourseId(Number(e.target.value) || null)}
-        >
-          <option value="">Select a course…</option>
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Course</label>
+          <Combobox
+            value={courseId != null ? String(courseId) : null}
+            onChange={(v) => setCourseId(Number(v))}
+            placeholder="Select a course…"
+            options={courses.map((c) => ({
+              value: String(c.id),
+              label: c.name,
+            }))}
+          />
+        </div>
 
         {course && (
-          <>
-            <label className="block text-sm font-medium">Tees</label>
-            <select
-              className="w-full rounded border px-3 py-2"
-              value={teeId ?? ""}
-              onChange={(e) => setTeeId(Number(e.target.value) || null)}
-            >
-              {course.tees.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.total_yards ? ` · ${t.total_yards} yds` : ""}
-                </option>
-              ))}
-            </select>
-          </>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Tees</label>
+            <Combobox
+              value={teeId != null ? String(teeId) : null}
+              onChange={(v) => setTeeId(Number(v))}
+              placeholder="Select tees…"
+              options={course.tees.map((t) => ({
+                value: String(t.id),
+                label: t.name,
+                sublabel: t.total_yards ? `${t.total_yards} yds` : undefined,
+              }))}
+            />
+          </div>
         )}
 
-        <label className="block text-sm font-medium">Date</label>
-        <input
-          type="date"
-          className="w-full rounded border px-3 py-2"
-          value={playedOn}
-          onChange={(e) => setPlayedOn(e.target.value)}
-        />
+        <div>
+          <label className="mb-1 block text-sm font-medium">Date</label>
+          <input
+            type="date"
+            className="input"
+            value={playedOn}
+            onChange={(e) => setPlayedOn(e.target.value)}
+          />
+        </div>
 
-        <label className="block text-sm font-medium">Time of day</label>
-        <Seg
-          value={timeOfDay}
-          onChange={setTimeOfDay}
-          options={[
-            { label: "Morning", value: "morning" },
-            { label: "Afternoon", value: "afternoon" },
-            { label: "Twilight", value: "twilight" },
-          ]}
-        />
+        <div>
+          <label className="mb-1 block text-sm font-medium">Time of day</label>
+          <Seg
+            value={timeOfDay}
+            onChange={setTimeOfDay}
+            options={[
+              { label: "Morning", value: "morning" },
+              { label: "Afternoon", value: "afternoon" },
+              { label: "Twilight", value: "twilight" },
+            ]}
+          />
+        </div>
 
         <button
           disabled={!canStart}
           onClick={() => setStarted(true)}
-          className="w-full rounded bg-fairway px-4 py-3 font-medium text-white disabled:opacity-40"
+          className="btn-primary w-full py-3"
         >
           Start round
         </button>
@@ -402,7 +403,7 @@ export default function NewRoundPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">
+        <h1 className="text-xl font-bold tracking-tight">
           Hole {hole.hole_number}{" "}
           <span className="text-gray-400">· Par {hole.par}</span>
         </h1>
@@ -411,7 +412,7 @@ export default function NewRoundPage() {
         </span>
       </div>
 
-      <div className="space-y-4 rounded-lg border bg-white p-4">
+      <div className="card space-y-4 p-4">
         <Stepper
           label="Score"
           value={s.score ?? hole.par}
@@ -460,8 +461,8 @@ export default function NewRoundPage() {
           <button
             type="button"
             onClick={() => patch(current, { gir: s.gir ? null : true })}
-            className={`flex-1 rounded border px-3 py-2 text-sm ${
-              s.gir ? "border-fairway bg-fairway text-white" : "bg-white"
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
+              s.gir ? "border-fairway bg-fairway text-white" : "border-gray-300 bg-white"
             }`}
           >
             GIR
@@ -471,8 +472,8 @@ export default function NewRoundPage() {
             onClick={() =>
               patch(current, { up_and_down: s.up_and_down ? null : true })
             }
-            className={`flex-1 rounded border px-3 py-2 text-sm ${
-              s.up_and_down ? "border-fairway bg-fairway text-white" : "bg-white"
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
+              s.up_and_down ? "border-fairway bg-fairway text-white" : "border-gray-300 bg-white"
             }`}
           >
             Up &amp; down
@@ -501,13 +502,9 @@ export default function NewRoundPage() {
                   key={h}
                   type="button"
                   onClick={() => toggleHazard(current, h)}
-                  className={`rounded-full border px-3 py-1 text-sm capitalize ${
-                    active
-                      ? "border-fairway bg-fairway text-white"
-                      : "border-gray-300 bg-white"
-                  }`}
+                  className={active ? "chip-on" : "chip-off"}
                 >
-                  {h.replace("_", " ")}
+                  {hazardLabel(h)}
                 </button>
               );
             })}
@@ -533,7 +530,7 @@ export default function NewRoundPage() {
           type="button"
           disabled={current === 0}
           onClick={() => setCurrent((c) => c - 1)}
-          className="rounded border px-4 py-3 disabled:opacity-40"
+          className="btn-ghost px-4 py-3"
         >
           ← Prev
         </button>
@@ -542,7 +539,7 @@ export default function NewRoundPage() {
             type="button"
             disabled={submitting}
             onClick={submit}
-            className="flex-1 rounded bg-fairway px-4 py-3 font-medium text-white disabled:opacity-40"
+            className="btn-primary flex-1 py-3"
           >
             {submitting ? "Saving…" : "Finish & save round"}
           </button>
@@ -550,7 +547,7 @@ export default function NewRoundPage() {
           <button
             type="button"
             onClick={() => setCurrent((c) => c + 1)}
-            className="flex-1 rounded bg-fairway px-4 py-3 font-medium text-white"
+            className="btn-primary flex-1 py-3"
           >
             Next hole →
           </button>

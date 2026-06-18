@@ -147,7 +147,10 @@ CREATE TABLE hole_stats (
 
     -- Hazards hit on the hole; empty array = none. A hole can hit several.
     hazards_hit     TEXT[]      NOT NULL DEFAULT '{}'
-                        CHECK (hazards_hit <@ ARRAY['water', 'bunker', 'natural_area']),
+                        CHECK (hazards_hit <@ ARRAY[
+                            'water', 'greenside_bunker', 'fairway_bunker',
+                            'natural_area', 'ob'
+                        ]),
 
     balls_lost      SMALLINT    NOT NULL DEFAULT 0 CHECK (balls_lost >= 0),
     -- beers consumed live in hole_beer (name + size); see below.

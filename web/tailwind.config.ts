@@ -9,10 +9,23 @@ const config: Config = {
     extend: {
       colors: {
         fairway: {
-          DEFAULT: "#1f7a3d",
-          dark: "#155c2c",
-          light: "#e8f5ec",
+          DEFAULT: "#15663f",
+          dark: "#0b3d2e",
+          600: "#1a7a4a",
+          light: "#e8f1ea",
         },
+        gold: "#c8a64b",
+        ink: "#16201b",
+        paper: {
+          DEFAULT: "#f5eccf",
+          line: "#d8c79a",
+        },
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(16,32,24,.06), 0 8px 24px rgba(16,32,24,.05)",
+      },
+      borderRadius: {
+        xl: "0.9rem",
       },
     },
   },

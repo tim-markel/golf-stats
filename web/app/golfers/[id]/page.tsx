@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,15 +16,50 @@ import { api, GolferStats } from "@/lib/api";
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-white p-4 text-center">
+    <div className="card p-4 text-center">
       <div className="text-2xl font-bold text-fairway">{value}</div>
       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
     </div>
   );
 }
 
+// X-axis tick: course name on top, date underneath.
+function CourseDateTick(props: any) {
+  const { x, y, payload, data } = props;
+  const item = data[payload.index];
+  if (!item) return null;
+  const name =
+    item.label.length > 12 ? item.label.slice(0, 11) + "…" : item.label;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" y={12} fontSize={11} fill="#4b5563">
+        {name}
+      </text>
+      <text textAnchor="middle" y={26} fontSize={10} fill="#9ca3af">
+        {item.date}
+      </text>
+    </g>
+  );
+}
+
+// Hover popup shown above the bar.
+function ScoreTooltip(props: any) {
+  const { active, payload } = props;
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm shadow-card">
+      <div className="font-semibold">{p.label}</div>
+      <div className="text-xs text-gray-500">{p.date}</div>
+      <div className="mt-1 font-bold text-fairway">Score: {p.score ?? "—"}</div>
+      <div className="mt-1 text-xs text-gray-400">Click to open scorecard</div>
+    </div>
+  );
+}
+
 export default function GolferStatsPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
+  const router = useRouter();
   const [data, setData] = useState<GolferStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,15 +77,16 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
     n == null ? "—" : `${n.toFixed(1)}${suffix}`;
 
   const chartData = data.rounds.map((r) => ({
+    round_id: r.round_id,
+    label: r.course_name,
     date: r.played_on,
     score: r.total_score,
-    putts: r.total_putts,
   }));
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{data.golfer.name}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{data.golfer.name}</h1>
         <p className="text-sm text-gray-500">
           {data.golfer.handicap != null
             ? `Handicap ${data.golfer.handicap} · `
@@ -64,59 +102,72 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
         <StatCard label="Fairways" value={fmt(data.fairway_pct, "%")} />
       </div>
 
-      <section className="rounded-lg border bg-white p-4">
-        <h2 className="mb-3 font-semibold">Scoring trend</h2>
+      <section className="card p-4">
+        <h2 className="mb-3 font-semibold">Scores by round</h2>
         {chartData.length === 0 ? (
           <p className="text-sm text-gray-500">No rounds logged yet.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={chartData} margin={{ left: -20, right: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Line
-                type="monotone"
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={chartData} margin={{ left: -16, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="label"
+                interval={0}
+                height={44}
+                tickLine={false}
+                tick={<CourseDateTick data={chartData} />}
+              />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip
+                content={<ScoreTooltip />}
+                cursor={{ fill: "rgba(21,102,63,0.06)" }}
+              />
+              <Bar
                 dataKey="score"
-                stroke="#1f7a3d"
-                strokeWidth={2}
-                name="Score"
+                fill="#15663f"
+                radius={[6, 6, 0, 0]}
+                maxBarSize={64}
+                cursor="pointer"
+                onClick={(d: any) => {
+                  const rid = d?.round_id ?? d?.payload?.round_id;
+                  if (rid) router.push(`/rounds/${rid}`);
+                }}
               />
-              <Line
-                type="monotone"
-                dataKey="putts"
-                stroke="#9ca3af"
-                strokeWidth={2}
-                name="Putts"
-              />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         )}
       </section>
 
-      <section className="rounded-lg border bg-white">
+      <section className="card">
         <h2 className="border-b px-4 py-3 font-semibold">Rounds</h2>
         <ul className="divide-y">
           {data.rounds
             .slice()
             .reverse()
             .map((r) => (
-              <li
-                key={r.round_id}
-                className="flex items-center justify-between px-4 py-3 text-sm"
-              >
-                <div>
-                  <div className="font-medium">{r.course_name}</div>
-                  <div className="text-gray-500">{r.played_on}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">
-                    {r.total_score ?? "—"} ({r.holes_played} holes)
+              <li key={r.round_id}>
+                <Link
+                  href={`/rounds/${r.round_id}`}
+                  className="flex items-center justify-between px-4 py-3 text-sm hover:bg-fairway-light"
+                >
+                  <div>
+                    <div className="font-medium">{r.course_name}</div>
+                    <div className="text-gray-500">{r.played_on}</div>
                   </div>
-                  <div className="text-gray-500">
-                    {r.total_putts ?? "—"} putts · {r.beers_finished} 🍺
+                  <div className="flex items-center gap-3 text-right">
+                    <div>
+                      <div className="font-semibold">
+                        {r.total_score ?? "—"}{" "}
+                        <span className="text-gray-400">({r.holes_played})</span>
+                      </div>
+                      <div className="text-gray-500">
+                        {r.total_putts ?? "—"} putts
+                        {r.beers_finished ? ` · ${r.beers_finished} 🍺` : ""}
+                      </div>
+                    </div>
+                    <span className="text-gray-300">›</span>
                   </div>
-                </div>
+                </Link>
               </li>
             ))}
           {data.rounds.length === 0 && (

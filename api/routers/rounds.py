@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from ..db import pool
-from ..schemas import RoundCreated, RoundIn
+from ..schemas import RoundCreated, RoundDetail, RoundIn, RoundScoresUpdate
 
 router = APIRouter(prefix="/rounds", tags=["rounds"])
 
@@ -87,26 +87,117 @@ def _resolve_beer_id(conn, beer) -> int:
     return row["beer_id"]
 
 
-@router.get("/{round_id}")
+@router.get("/{round_id}", response_model=RoundDetail)
 def get_round(round_id: int):
     with pool.connection() as conn:
         rnd = conn.execute(
             """
-            SELECT r.round_id, r.played_on, r.time_of_day, r.round_duration,
-                   r.golfer_id, r.course_id, r.tee_id, c.name AS course_name
-            FROM rounds r JOIN courses c ON c.id = r.course_id
+            SELECT r.round_id, r.played_on, r.time_of_day,
+                   r.round_duration::text AS round_duration,
+                   r.tee_id, c.name AS course_name, t.name AS tee_name
+            FROM rounds r
+            JOIN courses c ON c.id = r.course_id
+            LEFT JOIN tees t ON t.id = r.tee_id
             WHERE r.round_id = %s
             """,
             (round_id,),
         ).fetchone()
         if rnd is None:
             raise HTTPException(404, "Round not found")
+
+        # Per-hole scorecard rows, with yardage from the tee that was played and
+        # per-hole consumption counts (beer/nicotine/weed).
         holes = conn.execute(
             """
-            SELECT hs.*, h.hole_number, h.par
-            FROM hole_stats hs JOIN holes h ON h.id = hs.hole_id
-            WHERE hs.round_id = %s ORDER BY h.hole_number
+            SELECT h.id AS hole_id, h.hole_number, h.par, h.stroke_index, ht.yards,
+                   hs.score, hs.putts, hs.driving_accuracy, hs.gir,
+                   hs.approach_accuracy, hs.up_and_down, hs.penalty_stroke,
+                   hs.hazards_hit, hs.balls_lost,
+                   (SELECT COUNT(*) FROM hole_beer hb WHERE hb.hole_stat_id = hs.id) AS beers,
+                   (SELECT COALESCE(SUM(hn.quantity), 0) FROM hole_nicotine hn
+                        WHERE hn.hole_stat_id = hs.id) AS nicotine,
+                   (SELECT COUNT(*) FROM hole_weed hw WHERE hw.hole_stat_id = hs.id) AS weed
+            FROM hole_stats hs
+            JOIN holes h ON h.id = hs.hole_id
+            LEFT JOIN hole_tees ht ON ht.hole_id = h.id AND ht.tee_id = %s
+            WHERE hs.round_id = %s
+            ORDER BY h.hole_number
+            """,
+            (rnd["tee_id"], round_id),
+        ).fetchall()
+
+        # Round-level totals for the consumption summary.
+        agg = conn.execute(
+            """
+            SELECT
+                COALESCE(SUM(COALESCE(array_length(hazards_hit, 1), 0)), 0) AS hazards,
+                COALESCE(SUM(balls_lost), 0) AS balls_lost
+            FROM hole_stats WHERE round_id = %s
             """,
             (round_id,),
-        ).fetchall()
-    return {**rnd, "hole_stats": holes}
+        ).fetchone()
+        beers = conn.execute(
+            """
+            SELECT COUNT(*) AS beers, COALESCE(SUM(hb.size_oz), 0) AS beer_oz
+            FROM hole_beer hb JOIN hole_stats hs ON hs.id = hb.hole_stat_id
+            WHERE hs.round_id = %s
+            """,
+            (round_id,),
+        ).fetchone()
+        nic = conn.execute(
+            """
+            SELECT COALESCE(SUM(hn.quantity), 0) AS nicotine
+            FROM hole_nicotine hn JOIN hole_stats hs ON hs.id = hn.hole_stat_id
+            WHERE hs.round_id = %s
+            """,
+            (round_id,),
+        ).fetchone()
+        weed = conn.execute(
+            """
+            SELECT COUNT(*) AS weed
+            FROM hole_weed hw JOIN hole_stats hs ON hs.id = hw.hole_stat_id
+            WHERE hs.round_id = %s
+            """,
+            (round_id,),
+        ).fetchone()
+
+    def total(rows, lo, hi):
+        vals = [r["score"] for r in rows if r["score"] is not None and lo <= r["hole_number"] <= hi]
+        return sum(vals) if vals else None
+
+    putts = [h["putts"] for h in holes if h["putts"] is not None]
+
+    return {
+        **rnd,
+        "out_score": total(holes, 1, 9),
+        "in_score": total(holes, 10, 18),
+        "total_score": total(holes, 1, 99),
+        "total_putts": sum(putts) if putts else None,
+        "holes": holes,
+        "totals": {
+            "hazards": agg["hazards"],
+            "balls_lost": agg["balls_lost"],
+            "beers": beers["beers"],
+            "beer_oz": float(beers["beer_oz"]),
+            "nicotine": nic["nicotine"],
+            "weed": weed["weed"],
+        },
+    }
+
+
+@router.patch("/{round_id}/hole-stats", response_model=RoundDetail)
+def update_hole_stats(round_id: int, body: RoundScoresUpdate):
+    """Edit the scorecard: update score/putts for holes in an existing round."""
+    with pool.connection() as conn:
+        if conn.execute(
+            "SELECT 1 FROM rounds WHERE round_id = %s", (round_id,)
+        ).fetchone() is None:
+            raise HTTPException(404, "Round not found")
+        with conn.transaction():
+            for h in body.holes:
+                conn.execute(
+                    "UPDATE hole_stats SET score = %s, putts = %s "
+                    "WHERE round_id = %s AND hole_id = %s",
+                    (h.score, h.putts, round_id, h.hole_id),
+                )
+    return get_round(round_id)
