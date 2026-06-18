@@ -40,41 +40,65 @@ def leaderboard():
             "JOIN rounds r ON r.round_id = hs.round_id GROUP BY r.golfer_id"
         ).fetchall()
         nic_rows = conn.execute(
-            "SELECT r.golfer_id, COALESCE(SUM(hn.quantity), 0) AS n "
+            "SELECT r.golfer_id, hn.type, COALESCE(SUM(hn.quantity), 0) AS n "
             "FROM hole_nicotine hn JOIN hole_stats hs ON hs.id = hn.hole_stat_id "
-            "JOIN rounds r ON r.round_id = hs.round_id GROUP BY r.golfer_id"
+            "JOIN rounds r ON r.round_id = hs.round_id GROUP BY r.golfer_id, hn.type"
         ).fetchall()
         weed_rows = conn.execute(
-            "SELECT r.golfer_id, COUNT(*) AS n "
+            "SELECT r.golfer_id, hw.type, COUNT(*) AS n "
             "FROM hole_weed hw JOIN hole_stats hs ON hs.id = hw.hole_stat_id "
-            "JOIN rounds r ON r.round_id = hs.round_id GROUP BY r.golfer_id"
+            "JOIN rounds r ON r.round_id = hs.round_id GROUP BY r.golfer_id, hw.type"
         ).fetchall()
         hotdog_rows = conn.execute(
             "SELECT r.golfer_id, COALESCE(SUM(hs.hotdogs), 0) AS n "
             "FROM hole_stats hs JOIN rounds r ON r.round_id = hs.round_id "
             "GROUP BY r.golfer_id"
         ).fetchall()
+        hole_bad_rows = conn.execute(
+            "SELECT r.golfer_id, hs.hazards_hit, hs.balls_lost, hs.penalty_strokes, hs.putts "
+            "FROM hole_stats hs JOIN rounds r ON r.round_id = hs.round_id"
+        ).fetchall()
 
     names = {r["golfer_id"]: r["golfer_name"] for r in rounds}
 
-    def vice_list(rows, detail=None):
+    NIC_LABELS = {"cigarette": "cigs", "cigar": "cigars", "vape": "vape",
+                  "dip": "dip", "pouch": "zyns", "gum": "gum"}
+    WEED_LABELS = {"joint": "joints", "blunt": "blunts", "bowl": "bowls",
+                   "one_hitter": "one-hitters", "vape": "vape", "dab": "dabs",
+                   "edible": "edibles"}
+
+    def simple_list(rows, detail=None):
         out = [
-            {
-                "golfer_id": row["golfer_id"],
-                "name": names.get(row["golfer_id"], "?"),
-                "total": float(row["n"]),
-                "detail": detail(row) if detail else None,
-            }
-            for row in rows
-            if row["n"] and row["n"] > 0
+            {"golfer_id": row["golfer_id"], "name": names.get(row["golfer_id"], "?"),
+             "total": float(row["n"]), "detail": detail(row) if detail else None}
+            for row in rows if row["n"] and row["n"] > 0
         ]
         out.sort(key=lambda x: -x["total"])
         return out
 
-    beers = vice_list(beer_rows, lambda r: f"{float(r['oz']):g} oz" if r["oz"] else None)
-    nicotine = vice_list(nic_rows)
-    weed = vice_list(weed_rows)
-    hotdogs = vice_list(hotdog_rows)
+    def typed_list(rows, labels):
+        agg = defaultdict(lambda: [0.0, []])
+        for row in rows:
+            if not row["n"]:
+                continue
+            agg[row["golfer_id"]][0] += row["n"]
+            agg[row["golfer_id"]][1].append((labels.get(row["type"], row["type"]), row["n"]))
+        out = []
+        for gid, (total, parts) in agg.items():
+            if total <= 0:
+                continue
+            parts.sort(key=lambda p: -p[1])
+            out.append({
+                "golfer_id": gid, "name": names.get(gid, "?"), "total": float(total),
+                "detail": ", ".join(f"{int(n)} {lab}" for lab, n in parts),
+            })
+        out.sort(key=lambda x: -x["total"])
+        return out
+
+    beers = simple_list(beer_rows, lambda r: f"{float(r['oz']):g} oz" if r["oz"] else None)
+    hotdogs = simple_list(hotdog_rows)
+    nicotine = typed_list(nic_rows, NIC_LABELS)
+    weed = typed_list(weed_rows, WEED_LABELS)
 
     # --- per-golfer stats (18-hole rounds for score/putts/handicap) ---
     by_golfer = defaultdict(list)
@@ -111,6 +135,51 @@ def leaderboard():
         )
     )
 
+    # --- Total Ass Index ---------------------------------------------------
+    # Handicap + a per-round "ass" weight from each hole: penalty strokes and
+    # lost balls count 1 each; bunkers 0.25; natural area 0.25 (1.0 if a ball was
+    # lost there); water/OB 1.0; and 3+ putts add an escalating 0.3*(putts-2)^2.
+    acc = defaultdict(lambda: {"pen": 0, "balls": 0, "haz": 0, "tp": 0, "raw": 0.0})
+    for row in hole_bad_rows:
+        a = acc[row["golfer_id"]]
+        hz = row["hazards_hit"] or []
+        balls = row["balls_lost"] or 0
+        pen = row["penalty_strokes"] or 0
+        putts = row["putts"]
+        a["pen"] += pen
+        a["balls"] += balls
+        a["haz"] += len(hz)
+        weight = 0.0
+        for h in hz:
+            if h in ("greenside_bunker", "fairway_bunker"):
+                weight += 0.25
+            elif h == "natural_area":
+                weight += 1.0 if balls > 0 else 0.25
+            else:  # water, ob
+                weight += 1.0
+        if putts and putts >= 3:
+            a["tp"] += 1
+            weight += 0.3 * (putts - 2) ** 2
+        a["raw"] += pen + balls + weight
+
+    ass_index = []
+    for g in golfers:
+        gid = g["golfer_id"]
+        n = g["rounds_played"] or 1
+        a = acc.get(gid, {"pen": 0, "balls": 0, "haz": 0, "tp": 0, "raw": 0.0})
+        golf = (
+            g["handicap_index"]
+            if g["handicap_index"] is not None
+            else (g["avg_score"] - 72 if g["avg_score"] is not None else 0.0)
+        )
+        ass = golf + a["raw"] / n
+        ass_index.append({
+            "golfer_id": gid, "name": g["name"], "ass_index": round(ass, 1),
+            "penalties": a["pen"], "balls_lost": a["balls"], "hazards": a["haz"],
+            "three_putts": a["tp"], "rounds_played": g["rounds_played"],
+        })
+    ass_index.sort(key=lambda x: -x["ass_index"])
+
     # --- top scores per course (only full rounds of that course) ---
     by_course = defaultdict(list)
     for r in rounds:
@@ -126,6 +195,7 @@ def leaderboard():
                 "course_id": cid,
                 "course_name": rs[0]["course_name"],
                 "holes_count": rs[0]["holes_count"],
+                "rounds": len(rs),  # for ordering busiest courses first
                 "top": [
                     {
                         "golfer_id": r["golfer_id"],
@@ -134,11 +204,11 @@ def leaderboard():
                         "played_on": r["played_on"],
                         "holes_played": r["holes_played"],
                     }
-                    for r in rs[:5]
+                    for r in rs[:50]
                 ],
             }
         )
-    courses.sort(key=lambda c: c["course_name"])
+    courses.sort(key=lambda c: (-c["rounds"], c["course_name"]))
 
     return {
         "golfers": golfers,
@@ -147,4 +217,5 @@ def leaderboard():
         "nicotine": nicotine,
         "weed": weed,
         "hotdogs": hotdogs,
+        "ass_index": ass_index,
     }

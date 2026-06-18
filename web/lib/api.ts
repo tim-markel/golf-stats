@@ -163,6 +163,7 @@ export interface CourseLeaderboard {
   course_id: number;
   course_name: string;
   holes_count: number;
+  rounds: number;
   top: CourseTopScore[];
 }
 
@@ -173,6 +174,17 @@ export interface ViceRow {
   detail: string | null;
 }
 
+export interface AssIndexRow {
+  golfer_id: number;
+  name: string;
+  ass_index: number;
+  penalties: number;
+  balls_lost: number;
+  hazards: number;
+  three_putts: number;
+  rounds_played: number;
+}
+
 export interface Leaderboard {
   golfers: LeaderboardGolfer[];
   courses: CourseLeaderboard[];
@@ -180,6 +192,7 @@ export interface Leaderboard {
   nicotine: ViceRow[];
   weed: ViceRow[];
   hotdogs: ViceRow[];
+  ass_index: AssIndexRow[];
 }
 
 export interface ScorecardHole {

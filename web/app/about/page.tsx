@@ -147,6 +147,46 @@ export default function AboutPage() {
         </p>
       </Section>
 
+      <Section title="🍑 Total Ass Index">
+        <p>
+          The Total Ass Index is a fun, unofficial measure of how messy — how
+          much of an &quot;ass&quot; — your golf is, not just what you score. Find
+          it on the Leaderboard.
+        </p>
+        <p className="pt-1 font-semibold text-ink">How it&apos;s calculated</p>
+        <p>
+          It starts from your handicap, then adds a per-round &quot;ass weight&quot;
+          built from the trouble you got into on each hole:
+        </p>
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li>Penalty strokes and lost balls — <span className="font-semibold">1.0</span> each.</li>
+          <li>Water and OB — <span className="font-semibold">1.0</span> each.</li>
+          <li>Bunkers (greenside or fairway) — <span className="font-semibold">0.25</span> (a bunker isn&apos;t the end of the world).</li>
+          <li>Natural area — <span className="font-semibold">0.25</span>, but <span className="font-semibold">1.0</span> if you also lost a ball there.</li>
+          <li>3+ putts — an escalating <code>0.3 × (putts − 2)²</code>, so a 3-putt stings a little, a 4- or 5-putt a lot more.</li>
+        </ul>
+        <p>
+          Those are summed and divided by your rounds, then added to your
+          handicap. <span className="font-semibold">Higher = more ass.</span>
+        </p>
+        <p className="pt-1 font-semibold text-ink">Why it&apos;s different from handicap</p>
+        <p>
+          Handicap only cares about the number on the card — the{" "}
+          <em>outcome</em>. The Ass Index cares about <em>how</em> you got there:
+          the penalties, the bunkers, the lost balls, the 3-putts. It rewards
+          clean, boring, fairways-and-greens golf and punishes the
+          scrambling-from-the-trees kind, even when the final score is the same.
+        </p>
+        <p>
+          That makes it a useful tiebreaker between players of a{" "}
+          <span className="font-semibold">similar handicap</span>: two 12-handicaps
+          can shoot the same score, but one quietly two-putts from the middle of
+          the fairway while the other sprays it into hazards, loses balls, and
+          three-jacks — then somehow scrambles to the same number. Same handicap,
+          very different Ass Index. It surfaces the chaos a handicap hides.
+        </p>
+      </Section>
+
       <Section title="Good to know">
         <ul className="list-disc space-y-1.5 pl-5">
           <li>It&apos;s a personal tracker — your rounds and golfers live in your own database.</li>

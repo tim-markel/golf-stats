@@ -178,6 +178,7 @@ class CourseLeaderboard(BaseModel):
     course_id: int
     course_name: str
     holes_count: int
+    rounds: int = 0
     top: list[CourseTopScore] = []
 
 
@@ -188,6 +189,17 @@ class ViceRow(BaseModel):
     detail: Optional[str] = None
 
 
+class AssIndexRow(BaseModel):
+    golfer_id: int
+    name: str
+    ass_index: float
+    penalties: int
+    balls_lost: int
+    hazards: int
+    three_putts: int
+    rounds_played: int
+
+
 class Leaderboard(BaseModel):
     golfers: list[LeaderboardGolfer] = []
     courses: list[CourseLeaderboard] = []
@@ -195,6 +207,7 @@ class Leaderboard(BaseModel):
     nicotine: list[ViceRow] = []
     weed: list[ViceRow] = []
     hotdogs: list[ViceRow] = []
+    ass_index: list[AssIndexRow] = []
 
 
 # --- round detail / scorecard ----------------------------------------------
