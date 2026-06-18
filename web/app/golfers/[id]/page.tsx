@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { api, GolferStats } from "@/lib/api";
+import { useGolfer } from "@/lib/golfer-context";
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -60,8 +61,14 @@ function ScoreTooltip(props: any) {
 export default function GolferStatsPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
+  const { setActive } = useGolfer();
   const [data, setData] = useState<GolferStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function startNewRound() {
+    setActive(id); // the round will be for this golfer
+    router.push("/rounds/new");
+  }
 
   useEffect(() => {
     api
@@ -85,14 +92,19 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{data.golfer.name}</h1>
-        <p className="text-sm text-gray-500">
-          {data.golfer.handicap != null
-            ? `Handicap ${data.golfer.handicap} · `
-            : ""}
-          {data.rounds_played} round{data.rounds_played === 1 ? "" : "s"}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{data.golfer.name}</h1>
+          <p className="text-sm text-gray-500">
+            {data.golfer.handicap != null
+              ? `Handicap ${data.golfer.handicap} · `
+              : ""}
+            {data.rounds_played} round{data.rounds_played === 1 ? "" : "s"}
+          </p>
+        </div>
+        <button onClick={startNewRound} className="btn-primary shrink-0">
+          + New round
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

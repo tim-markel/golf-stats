@@ -64,11 +64,10 @@ export default function SettingsMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 hover:bg-white/25"
+        className="flex items-center rounded-full bg-white/15 p-2 hover:bg-white/25"
         aria-label="Settings"
       >
         <GearIcon />
-        <span className="text-sm">{active ? active.name : "Settings"}</span>
       </button>
 
       {open && (

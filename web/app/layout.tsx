@@ -28,9 +28,6 @@ export default function RootLayout({
                 <Link href="/" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
                   Golfers
                 </Link>
-                <Link href="/rounds/new" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-                  + New round
-                </Link>
                 <SettingsMenu />
               </div>
             </nav>

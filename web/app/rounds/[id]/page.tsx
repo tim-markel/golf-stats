@@ -396,6 +396,60 @@ function StatPie({
   );
 }
 
+// Approach dispersion: a green "target" with the % of approaches in each of the
+// 9 zones (center = on the green, plus the 8 miss directions).
+function ApproachGrid({
+  counts,
+  gir,
+  holes,
+}: {
+  counts: Record<string, number>;
+  gir: number;
+  holes: number;
+}) {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (total === 0) return null;
+  const pct = (k: string) => Math.round(((counts[k] || 0) / total) * 100);
+
+  const pos: Record<string, [number, number]> = {
+    long_left: [25, 23], long: [50, 18], long_right: [75, 23],
+    left: [14, 51], on: [50, 51], right: [86, 51],
+    short_left: [25, 83], short: [50, 86], short_right: [75, 83],
+  };
+  const spokes: [number, number][] = [
+    [6, 6], [94, 6], [6, 94], [94, 94], [50, 5], [50, 95], [5, 50], [95, 50],
+  ];
+
+  return (
+    <div className="card p-4">
+      <h3 className="mb-2 text-sm font-semibold">Approach Stats</h3>
+      <div className="flex items-center gap-3">
+        <svg viewBox="0 0 100 100" className="w-full max-w-[180px] flex-1">
+          <rect x="2" y="2" width="96" height="96" rx="3" fill="#eef6f0"
+                stroke="#1a7a4a" strokeWidth="1.3" />
+          {spokes.map(([x, y], i) => (
+            <line key={i} x1="50" y1="50" x2={x} y2={y} stroke="#c4d4ca" strokeWidth="0.8" />
+          ))}
+          <circle cx="50" cy="50" r="13" fill="#1a7a4a" />
+          {Object.entries(pos).map(([k, [x, y]]) => (
+            <text key={k} x={x} y={y} textAnchor="middle" dominantBaseline="central"
+                  fontSize="7.5" fontWeight="700"
+                  fill={k === "on" ? "#ffffff" : "#16201b"}>
+              {pct(k)}%
+            </text>
+          ))}
+        </svg>
+        <div className="shrink-0 px-2 text-center">
+          <div className="text-xs uppercase tracking-wide text-gray-500">GIR</div>
+          <div className="text-2xl font-bold text-fairway">
+            {gir}/{holes}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RoundScorecardPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
@@ -420,10 +474,15 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const coursePar = round.holes.reduce((a, h) => a + h.par, 0);
   const t = round.totals;
 
-  const holesCount = round.holes.length;
-  const girCount = round.holes.filter((h) => h.gir).length;
   const fairwaysTotal = round.holes.filter((h) => h.par >= 4).length;
   const fairwaysHit = round.holes.filter((h) => h.driving_accuracy === "fairway").length;
+  const holesCount = round.holes.length;
+  const girCount = round.holes.filter((h) => h.gir).length;
+  const approachCounts: Record<string, number> = {};
+  round.holes.forEach((h) => {
+    if (h.approach_accuracy)
+      approachCounts[h.approach_accuracy] = (approachCounts[h.approach_accuracy] || 0) + 1;
+  });
 
   // distributions for the pies
   const puttCounts: Record<string, number> = {};
@@ -533,7 +592,9 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
           )}
         </div>
         <div className="space-y-2 p-2">
-          <Nine holes={front} label="Out" editing={editing} draft={draft} setDraft={setDraft} />
+          {front.length > 0 && (
+            <Nine holes={front} label="Out" editing={editing} draft={draft} setDraft={setDraft} />
+          )}
           {back.length > 0 && (
             <Nine holes={back} label="In" editing={editing} draft={draft} setDraft={setDraft} />
           )}
@@ -553,7 +614,6 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       <section>
         <h2 className="mb-2 font-semibold">Round totals</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Summary label="GIR" value={`${girCount}/${holesCount}`} />
           <Summary
             label="Putts"
             value={round.total_putts != null ? String(round.total_putts) : "–"}
@@ -572,6 +632,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ApproachGrid counts={approachCounts} gir={girCount} holes={holesCount} />
           <StatPie title="Score distribution" data={scorePie} />
           <StatPie title="Putt distribution" data={puttPie} />
           <StatPie title="Fairways" data={fairwayPie} />

@@ -9,15 +9,16 @@ import {
   Course,
   CourseDetail,
   DrivingAccuracy,
-  Golfer,
   Hazard,
   hazardLabel,
+  Hole,
   HoleStatIn,
   nicotineLabel,
   PenaltyStroke,
   weedLabel,
 } from "@/lib/api";
 import Combobox from "@/components/Combobox";
+import { useGolfer } from "@/lib/golfer-context";
 
 const HAZARDS: Hazard[] = [
   "water",
@@ -383,21 +384,24 @@ function WeedEntry({
 
 export default function NewRoundPage() {
   const router = useRouter();
-  const [golfers, setGolfers] = useState<Golfer[]>([]);
+  const { active } = useGolfer(); // round is for the golfer whose page you came from
+  const golferId = active?.golfer_id ?? null;
   const [courses, setCourses] = useState<Course[]>([]);
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [beerOptions, setBeerOptions] = useState<Beer[]>([]);
 
-  const [golferId, setGolferId] = useState<number | null>(null);
   const [courseId, setCourseId] = useState<number | null>(null);
   const [teeId, setTeeId] = useState<number | null>(null);
   const [playedOn, setPlayedOn] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
+  const [holesPlayed, setHolesPlayed] = useState<9 | 18>(18);
+  const [nine, setNine] = useState<"front" | "back">("front");
   const [timeOfDay, setTimeOfDay] = useState<
     "morning" | "afternoon" | "twilight" | null
   >(null);
 
+  const [roundHoles, setRoundHoles] = useState<Hole[]>([]);
   const [stats, setStats] = useState<HoleStatIn[]>([]);
   const [current, setCurrent] = useState(0);
   const [started, setStarted] = useState(false);
@@ -405,7 +409,6 @@ export default function NewRoundPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listGolfers().then(setGolfers).catch(() => {});
     api.listCourses().then(setCourses).catch(() => {});
     api.listBeers().then(setBeerOptions).catch(() => {});
   }, []);
@@ -414,10 +417,21 @@ export default function NewRoundPage() {
     if (courseId == null) return;
     api.getCourse(courseId).then((c) => {
       setCourse(c);
-      setStats(c.holes.map((h) => emptyHoleStat(h.id)));
       setTeeId(c.tees[0]?.id ?? null);
+      setHolesPlayed(c.holes_count <= 9 ? 9 : 18); // 9-hole courses are always 9
     });
   }, [courseId]);
+
+  // The subset of holes actually being played, based on 9/18 + front/back.
+  function selectedHoles(c: CourseDetail): Hole[] {
+    const all = [...c.holes].sort((a, b) => a.hole_number - b.hole_number);
+    if (holesPlayed === 18) return all;
+    if (nine === "back") {
+      const back = all.filter((h) => h.hole_number > 9);
+      return back.length ? back : all;
+    }
+    return all.filter((h) => h.hole_number <= 9);
+  }
 
   function patch(i: number, p: Partial<HoleStatIn>) {
     setStats((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...p } : s)));
@@ -438,11 +452,20 @@ export default function NewRoundPage() {
     );
   }
 
+  function startRound() {
+    if (!course) return;
+    const holes = selectedHoles(course);
+    setRoundHoles(holes);
+    setStats(holes.map((h) => emptyHoleStat(h.id)));
+    setCurrent(0);
+    setStarted(true);
+  }
+
   // When advancing a hole, default its score to par if it wasn't touched.
   function defaultScore(i: number) {
     setStats((prev) =>
       prev.map((s, idx) =>
-        idx === i && s.score == null ? { ...s, score: course!.holes[idx].par } : s
+        idx === i && s.score == null ? { ...s, score: roundHoles[idx].par } : s
       )
     );
   }
@@ -459,7 +482,7 @@ export default function NewRoundPage() {
       // default the final hole's score to par too if it wasn't set
       const finalStats = stats.map((s, idx) =>
         idx === current && s.score == null
-          ? { ...s, score: course!.holes[idx].par }
+          ? { ...s, score: roundHoles[idx].par }
           : s
       );
       await api.createRound({
@@ -481,22 +504,18 @@ export default function NewRoundPage() {
   // --- setup screen --------------------------------------------------------
   if (!started) {
     const canStart = golferId != null && course != null;
+    const is18 = course != null && course.holes_count > 9;
     return (
       <div className="card space-y-4 p-5">
-        <h1 className="text-2xl font-bold tracking-tight">New round</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          New round{active ? ` · ${active.name}` : ""}
+        </h1>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">Golfer</label>
-          <Combobox
-            value={golferId != null ? String(golferId) : null}
-            onChange={(v) => setGolferId(Number(v))}
-            placeholder="Select a golfer…"
-            options={golfers.map((g) => ({
-              value: String(g.golfer_id),
-              label: g.name,
-            }))}
-          />
-        </div>
+        {golferId == null && (
+          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            No golfer selected — open a golfer&apos;s page and tap “New round”.
+          </p>
+        )}
 
         <div>
           <label className="mb-1 block text-sm font-medium">Course</label>
@@ -537,6 +556,46 @@ export default function NewRoundPage() {
           />
         </div>
 
+        {is18 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Holes played</label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setHolesPlayed(18)}
+                className={holesPlayed === 18 ? "chip-on" : "chip-off"}
+              >
+                18
+              </button>
+              <button
+                type="button"
+                onClick={() => setHolesPlayed(9)}
+                className={holesPlayed === 9 ? "chip-on" : "chip-off"}
+              >
+                9
+              </button>
+            </div>
+            {holesPlayed === 9 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setNine("front")}
+                  className={nine === "front" ? "chip-on" : "chip-off"}
+                >
+                  Front 9
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNine("back")}
+                  className={nine === "back" ? "chip-on" : "chip-off"}
+                >
+                  Back 9
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="mb-1 block text-sm font-medium">Time of day</label>
           <Seg
@@ -552,7 +611,7 @@ export default function NewRoundPage() {
 
         <button
           disabled={!canStart}
-          onClick={() => setStarted(true)}
+          onClick={startRound}
           className="btn-primary w-full py-3"
         >
           Start round
@@ -567,9 +626,9 @@ export default function NewRoundPage() {
   }
 
   // --- hole-by-hole entry --------------------------------------------------
-  const hole = course!.holes[current];
+  const hole = roundHoles[current];
   const s = stats[current];
-  const isLast = current === course!.holes.length - 1;
+  const isLast = current === roundHoles.length - 1;
   const showDriving = hole.par >= 4;
 
   return (
@@ -580,7 +639,7 @@ export default function NewRoundPage() {
           <span className="text-gray-400">· Par {hole.par}</span>
         </h1>
         <span className="text-sm text-gray-500">
-          {current + 1}/{course!.holes.length}
+          {current + 1}/{roundHoles.length}
         </span>
       </div>
 
