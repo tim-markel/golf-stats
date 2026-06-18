@@ -782,10 +782,13 @@ export default function NewRoundPage() {
           <Combobox
             value={courseId != null ? String(courseId) : null}
             onChange={(v) => setCourseId(Number(v))}
-            placeholder="Select a course…"
+            placeholder="Search courses…"
             options={courses.map((c) => ({
               value: String(c.id),
               label: c.name,
+              sublabel: [c.city, `${c.holes_count} holes`]
+                .filter(Boolean)
+                .join(" · "),
             }))}
           />
         </div>
