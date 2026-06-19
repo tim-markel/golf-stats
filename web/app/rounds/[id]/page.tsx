@@ -18,6 +18,7 @@ import {
   nicotineLabel,
   RoundDetail,
   ScorecardHole,
+  Tee,
   weedLabel,
 } from "@/lib/api";
 
@@ -490,6 +491,12 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const [draft, setDraft] = useState<Draft>({});
   const [saving, setSaving] = useState(false);
 
+  // round metadata (date / tees / time of day) editing
+  const [metaEditing, setMetaEditing] = useState(false);
+  const [metaSaving, setMetaSaving] = useState(false);
+  const [tees, setTees] = useState<Tee[]>([]);
+  const [meta, setMeta] = useState({ played_on: "", tee_id: "", time_of_day: "" });
+
   useEffect(() => {
     api
       .getRound(id)
@@ -565,6 +572,38 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
     setEditing(true);
   }
 
+  async function startMetaEdit() {
+    setMeta({
+      played_on: round!.played_on,
+      tee_id: round!.tee_id != null ? String(round!.tee_id) : "",
+      time_of_day: round!.time_of_day ?? "",
+    });
+    setMetaEditing(true);
+    if (tees.length === 0) {
+      try {
+        const course = await api.getCourse(round!.course_id);
+        setTees(course.tees);
+      } catch {
+        /* leave the tee dropdown empty if the course fails to load */
+      }
+    }
+  }
+
+  async function saveMeta() {
+    setMetaSaving(true);
+    try {
+      const fresh = await api.updateRound(id, {
+        played_on: meta.played_on || undefined,
+        tee_id: meta.tee_id === "" ? null : Number(meta.tee_id),
+        time_of_day: meta.time_of_day === "" ? null : (meta.time_of_day as any),
+      });
+      setRound(fresh);
+      setMetaEditing(false);
+    } finally {
+      setMetaSaving(false);
+    }
+  }
+
   async function saveEdit() {
     setSaving(true);
     try {
@@ -591,13 +630,68 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       </button>
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">{round.course_name}</h1>
-          <p className="text-sm text-gray-500">
-            {round.played_on}
-            {round.tee_name ? ` · ${round.tee_name} tees` : ""}
-            {round.time_of_day ? ` · ${round.time_of_day}` : ""}
-          </p>
+          {metaEditing ? (
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="text-xs text-gray-500">
+                <span className="mb-0.5 block uppercase tracking-wide">Date</span>
+                <input
+                  type="date"
+                  value={meta.played_on}
+                  onChange={(e) => setMeta({ ...meta, played_on: e.target.value })}
+                  className="input w-auto py-1 text-sm text-ink"
+                />
+              </label>
+              <label className="text-xs text-gray-500">
+                <span className="mb-0.5 block uppercase tracking-wide">Tees</span>
+                <select
+                  value={meta.tee_id}
+                  onChange={(e) => setMeta({ ...meta, tee_id: e.target.value })}
+                  className="input w-auto py-1 text-sm text-ink"
+                >
+                  <option value="">No tee</option>
+                  {tees.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-gray-500">
+                <span className="mb-0.5 block uppercase tracking-wide">Time</span>
+                <select
+                  value={meta.time_of_day}
+                  onChange={(e) => setMeta({ ...meta, time_of_day: e.target.value })}
+                  className="input w-auto py-1 text-sm text-ink"
+                >
+                  <option value="">—</option>
+                  <option value="morning">Morning</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="twilight">Twilight</option>
+                </select>
+              </label>
+              <div className="flex gap-2">
+                <button onClick={saveMeta} disabled={metaSaving} className="btn-primary px-3 py-1">
+                  {metaSaving ? "Saving…" : "Save"}
+                </button>
+                <button onClick={() => setMetaEditing(false)} className="btn-ghost px-3 py-1">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <p className="text-sm text-gray-500">
+                {round.played_on}
+                {round.tee_name ? ` · ${round.tee_name} tees` : ""}
+                {round.time_of_day ? ` · ${round.time_of_day}` : ""}
+              </p>
+              <button onClick={startMetaEdit} className="btn-ghost px-2 py-0.5 text-xs">
+                ✏️ Edit round
+              </button>
+            </div>
+          )}
         </div>
         <div className="text-right">
           <div className="text-3xl font-bold text-fairway">{round.total_score ?? "–"}</div>
@@ -624,7 +718,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
             </div>
           ) : (
             <button onClick={startEdit} className="btn-ghost px-3 py-1">
-              ✏️ Edit scorecard
+              ✏️ Edit stats
             </button>
           )}
         </div>

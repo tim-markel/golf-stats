@@ -262,7 +262,9 @@ export interface RoundDetail {
   played_on: string;
   time_of_day: string | null;
   round_duration: string | null;
+  course_id: number;
   course_name: string;
+  tee_id: number | null;
   tee_name: string | null;
   out_score: number | null;
   in_score: number | null;
@@ -313,6 +315,14 @@ export const api = {
   listBeers: () => get<Beer[]>("/beers"),
   createRound: (b: RoundIn) => post<{ round_id: number }>("/rounds", b),
   getRound: (id: number) => get<RoundDetail>(`/rounds/${id}`),
+  updateRound: (
+    id: number,
+    b: {
+      played_on?: string;
+      tee_id?: number | null;
+      time_of_day?: "morning" | "afternoon" | "twilight" | null;
+    }
+  ) => patch<RoundDetail>(`/rounds/${id}`, b),
   updateRoundHoleStats: (id: number, holes: HoleScoreUpdate[]) =>
     patch<RoundDetail>(`/rounds/${id}/hole-stats`, { holes }),
 };

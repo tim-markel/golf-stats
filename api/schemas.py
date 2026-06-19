@@ -254,6 +254,12 @@ class RoundScoresUpdate(BaseModel):
     holes: list[HoleScoreUpdate]
 
 
+class RoundMetaUpdate(BaseModel):
+    played_on: Optional[date] = None
+    tee_id: Optional[int] = None
+    time_of_day: Optional[Literal["morning", "afternoon", "twilight"]] = None
+
+
 class RoundTotals(BaseModel):
     hazards: int = 0
     balls_lost: int = 0
@@ -270,7 +276,9 @@ class RoundDetail(BaseModel):
     played_on: date
     time_of_day: Optional[str] = None
     round_duration: Optional[str] = None
+    course_id: int
     course_name: str
+    tee_id: Optional[int] = None
     tee_name: Optional[str] = None
     out_score: Optional[int] = None
     in_score: Optional[int] = None

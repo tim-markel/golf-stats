@@ -6,7 +6,13 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 
 from ..db import pool
-from ..schemas import RoundCreated, RoundDetail, RoundIn, RoundScoresUpdate
+from ..schemas import (
+    RoundCreated,
+    RoundDetail,
+    RoundIn,
+    RoundMetaUpdate,
+    RoundScoresUpdate,
+)
 
 router = APIRouter(prefix="/rounds", tags=["rounds"])
 
@@ -96,7 +102,8 @@ def get_round(round_id: int):
             """
             SELECT r.round_id, r.played_on, r.time_of_day,
                    r.round_duration::text AS round_duration,
-                   r.tee_id, c.name AS course_name, t.name AS tee_name
+                   r.course_id, c.name AS course_name,
+                   r.tee_id, t.name AS tee_name
             FROM rounds r
             JOIN courses c ON c.id = r.course_id
             LEFT JOIN tees t ON t.id = r.tee_id
@@ -218,6 +225,36 @@ def get_round(round_id: int):
             "hotdogs": agg["hotdogs"],
         },
     }
+
+
+@router.patch("/{round_id}", response_model=RoundDetail)
+def update_round_meta(round_id: int, body: RoundMetaUpdate):
+    """Edit round details: date played, tee set, and time of day."""
+    with pool.connection() as conn:
+        rnd = conn.execute(
+            "SELECT course_id FROM rounds WHERE round_id = %s", (round_id,)
+        ).fetchone()
+        if rnd is None:
+            raise HTTPException(404, "Round not found")
+        if body.tee_id is not None:
+            tee = conn.execute(
+                "SELECT 1 FROM tees WHERE id = %s AND course_id = %s",
+                (body.tee_id, rnd["course_id"]),
+            ).fetchone()
+            if tee is None:
+                raise HTTPException(422, "That tee doesn't belong to this course.")
+        with conn.transaction():
+            conn.execute(
+                """
+                UPDATE rounds SET
+                    played_on   = COALESCE(%s, played_on),
+                    tee_id      = COALESCE(%s, tee_id),
+                    time_of_day = COALESCE(%s, time_of_day)
+                WHERE round_id = %s
+                """,
+                (body.played_on, body.tee_id, body.time_of_day, round_id),
+            )
+    return get_round(round_id)
 
 
 @router.patch("/{round_id}/hole-stats", response_model=RoundDetail)
