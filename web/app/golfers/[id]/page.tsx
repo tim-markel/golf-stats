@@ -7,6 +7,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -165,7 +166,15 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
                   const rid = d?.round_id ?? d?.payload?.round_id;
                   if (rid) router.push(`/rounds/${rid}`);
                 }}
-              />
+              >
+                <LabelList
+                  dataKey="score"
+                  position="top"
+                  fontSize={12}
+                  fontWeight={600}
+                  fill="#15663f"
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
