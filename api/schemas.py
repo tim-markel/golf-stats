@@ -222,6 +222,19 @@ class HoleWeed(BaseModel):
     hits: float = 0  # total when logged in "hits" (e.g. vape hits)
 
 
+# Raw per-hole consumption entries (used to re-populate the hole editor).
+class HoleBeerEntry(BaseModel):
+    beer_id: Optional[int] = None
+    name: Optional[str] = None
+    size_oz: float
+
+
+class HoleWeedEntry(BaseModel):
+    type: str
+    amount: Optional[float] = None
+    unit: Optional[str] = None
+
+
 class ScorecardHole(BaseModel):
     hole_id: int
     hole_number: int
@@ -235,13 +248,17 @@ class ScorecardHole(BaseModel):
     approach_accuracy: Optional[str] = None
     up_and_down: Optional[bool] = None
     penalty_locations: list[str] = Field(default_factory=list)
+    penalty_strokes: int = 0
     hazards_hit: list[str] = Field(default_factory=list)
     balls_lost: int = 0
-    # per-hole consumption
+    # per-hole consumption (aggregated for display)
     beers: int = 0
     hotdogs: int = 0
     nicotine: list[HoleNicotine] = Field(default_factory=list)
     weed: list[HoleWeed] = Field(default_factory=list)
+    # raw entries for the editor (round-trips back to the PATCH body)
+    beer_entries: list[HoleBeerEntry] = Field(default_factory=list)
+    weed_entries: list[HoleWeedEntry] = Field(default_factory=list)
 
 
 class HoleScoreUpdate(BaseModel):
@@ -258,6 +275,26 @@ class RoundMetaUpdate(BaseModel):
     played_on: Optional[date] = None
     tee_id: Optional[int] = None
     time_of_day: Optional[Literal["morning", "afternoon", "twilight"]] = None
+
+
+class HoleStatEdit(BaseModel):
+    """Edit a single hole's stats, including its consumption. The consumption
+    lists fully replace the hole's existing beer/nicotine/weed rows."""
+
+    score: Optional[int] = None
+    putts: Optional[int] = None
+    driving_accuracy: Optional[DrivingAccuracy] = None
+    gir: Optional[bool] = None
+    approach_accuracy: Optional[ApproachAccuracy] = None
+    up_and_down: Optional[bool] = None
+    penalty_locations: list[PenaltyStroke] = Field(default_factory=list)
+    penalty_strokes: int = 0
+    hazards_hit: list[Hazard] = Field(default_factory=list)
+    balls_lost: int = 0
+    hotdogs: int = 0
+    nicotine: list[NicotineIn] = Field(default_factory=list)
+    weed: list[WeedIn] = Field(default_factory=list)
+    beers: list[BeerIn] = Field(default_factory=list)
 
 
 class RoundTotals(BaseModel):

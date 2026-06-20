@@ -208,12 +208,16 @@ export interface ScorecardHole {
   approach_accuracy: string | null;
   up_and_down: boolean | null;
   penalty_locations: string[];
+  penalty_strokes: number;
   hazards_hit: string[];
   balls_lost: number;
   beers: number;
   hotdogs: number;
   nicotine: { type: string; quantity: number }[];
   weed: { type: string; count: number; hits: number }[];
+  // raw entries for the per-hole editor
+  beer_entries: { beer_id: number | null; name: string | null; size_oz: number }[];
+  weed_entries: { type: string; amount: number | null; unit: string | null }[];
 }
 
 // Friendly labels for the per-hole consumption breakdowns.
@@ -244,6 +248,24 @@ export interface HoleScoreUpdate {
   hole_id: number;
   score: number | null;
   putts: number | null;
+}
+
+// Per-hole golf-stat edit (consumption is left untouched by this endpoint).
+export interface HoleStatEdit {
+  score: number | null;
+  putts: number | null;
+  driving_accuracy: DrivingAccuracy | null;
+  gir: boolean | null;
+  approach_accuracy: ApproachAccuracy | null;
+  up_and_down: boolean | null;
+  penalty_locations: PenaltyStroke[];
+  penalty_strokes: number;
+  hazards_hit: Hazard[];
+  balls_lost: number;
+  hotdogs: number;
+  nicotine: { type: string; quantity: number }[];
+  weed: { type: string; amount: number | null; unit: string | null }[];
+  beers: BeerIn[];
 }
 
 export interface RoundTotals {
@@ -325,4 +347,6 @@ export const api = {
   ) => patch<RoundDetail>(`/rounds/${id}`, b),
   updateRoundHoleStats: (id: number, holes: HoleScoreUpdate[]) =>
     patch<RoundDetail>(`/rounds/${id}/hole-stats`, { holes }),
+  updateHoleStat: (roundId: number, holeId: number, b: HoleStatEdit) =>
+    patch<RoundDetail>(`/rounds/${roundId}/holes/${holeId}`, b),
 };

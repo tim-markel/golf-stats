@@ -14,13 +14,28 @@ import {
 } from "recharts";
 import {
   api,
+  ApproachAccuracy,
+  Beer,
+  DrivingAccuracy,
+  Hazard,
   hazardLabel,
+  HoleStatEdit,
   nicotineLabel,
+  PenaltyStroke,
   RoundDetail,
   ScorecardHole,
   Tee,
   weedLabel,
 } from "@/lib/api";
+import {
+  BeerEntry,
+  CountChoice,
+  DirPad,
+  GirControl,
+  NicotineEntry,
+  ScorePicker,
+  WeedEntry,
+} from "@/components/holeControls";
 
 // --- score markers: birdie=1 circle, eagle=2 circles, bogey=1 square, dbl+=2 ---
 function ScoreMark({
@@ -230,7 +245,7 @@ function Mini({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function HoleCard({ h }: { h: ScorecardHole }) {
+function HoleCard({ h, onEdit }: { h: ScorecardHole; onEdit?: () => void }) {
   const term = scoreTerm(h.score, h.par);
   const played = h.score != null;
 
@@ -258,7 +273,18 @@ function HoleCard({ h }: { h: ScorecardHole }) {
     <div className="card overflow-hidden text-ink">
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-sm">
         <span className="font-bold">Hole {h.hole_number}</span>
-        <span className="text-gray-400">Par {h.par}</span>
+        <span className="flex items-center gap-2">
+          <span className="text-gray-400">Par {h.par}</span>
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              title="Edit hole stats"
+              className="text-gray-400 hover:text-fairway"
+            >
+              ✏️
+            </button>
+          )}
+        </span>
       </div>
 
       {/* number on the left, term on the right */}
@@ -308,11 +334,231 @@ function HoleCard({ h }: { h: ScorecardHole }) {
   );
 }
 
+const HAZARDS: Hazard[] = [
+  "water",
+  "greenside_bunker",
+  "fairway_bunker",
+  "natural_area",
+  "ob",
+];
+
+// Full per-hole stat editor (golf stats only; consumption is left as-is).
+function HoleEditCard({
+  hole,
+  roundId,
+  beerOptions,
+  onSaved,
+  onCancel,
+}: {
+  hole: ScorecardHole;
+  roundId: number;
+  beerOptions: Beer[];
+  onSaved: (r: RoundDetail) => void;
+  onCancel: () => void;
+}) {
+  const [d, setD] = useState<HoleStatEdit>({
+    score: hole.score,
+    putts: hole.putts,
+    driving_accuracy: (hole.driving_accuracy as DrivingAccuracy | null) ?? null,
+    gir: hole.gir,
+    approach_accuracy: (hole.approach_accuracy as ApproachAccuracy | null) ?? null,
+    up_and_down: hole.up_and_down,
+    penalty_locations: (hole.penalty_locations as PenaltyStroke[]) ?? [],
+    penalty_strokes: hole.penalty_strokes ?? 0,
+    hazards_hit: (hole.hazards_hit as Hazard[]) ?? [],
+    balls_lost: hole.balls_lost ?? 0,
+    hotdogs: hole.hotdogs ?? 0,
+    nicotine: hole.nicotine.map((n) => ({ type: n.type, quantity: n.quantity })),
+    weed: hole.weed_entries.map((w) => ({
+      type: w.type,
+      amount: w.amount,
+      unit: w.unit,
+    })),
+    beers: hole.beer_entries.map((b) => ({
+      beer_id: b.beer_id,
+      name: b.name,
+      abv: null,
+      size_oz: b.size_oz,
+    })),
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (p: Partial<HoleStatEdit>) => setD((prev) => ({ ...prev, ...p }));
+  const showDriving = hole.par >= 4;
+
+  async function save() {
+    setSaving(true);
+    try {
+      onSaved(await api.updateHoleStat(roundId, hole.hole_id, d));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card space-y-4 border-2 border-fairway p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold">
+          Hole {hole.hole_number} <span className="text-gray-400">· Par {hole.par}</span>
+        </h3>
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving} className="btn-primary px-3 py-1">
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button onClick={onCancel} className="btn-ghost px-3 py-1">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <ScorePicker par={hole.par} value={d.score} onChange={(v) => set({ score: v })} />
+
+      <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
+        {showDriving && (
+          <DirPad
+            label="Driving"
+            layout="cross"
+            value={d.driving_accuracy}
+            onChange={(v) => set({ driving_accuracy: v as DrivingAccuracy | null })}
+          />
+        )}
+        <DirPad
+          label="Approach"
+          layout="grid"
+          value={d.approach_accuracy}
+          onChange={(v) => set({ approach_accuracy: v as ApproachAccuracy | null })}
+        />
+        <GirControl
+          gir={d.gir}
+          upDown={d.up_and_down}
+          onGir={(v) => set({ gir: v })}
+          onUpDown={(v) => set({ up_and_down: v })}
+        />
+      </div>
+
+      <CountChoice label="Putts" value={d.putts ?? 0} onChange={(v) => set({ putts: v })} />
+
+      <div>
+        <div className="mb-1 text-sm font-medium">Penalty</div>
+        <div className="flex flex-wrap gap-1.5">
+          {([["off_tee", "Off tee"], ["approach", "Approach"]] as const).map(([val, label]) => {
+            const active = d.penalty_locations.includes(val);
+            return (
+              <button
+                key={val}
+                type="button"
+                onClick={() =>
+                  set({
+                    penalty_locations: active
+                      ? d.penalty_locations.filter((x) => x !== val)
+                      : [...d.penalty_locations, val],
+                  })
+                }
+                className={active ? "chip-on" : "chip-off"}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-2">
+          <CountChoice
+            label="Penalty strokes"
+            value={d.penalty_strokes}
+            onChange={(v) => set({ penalty_strokes: v })}
+            min={1}
+          />
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-sm font-medium">Hazards hit</div>
+        <div className="flex flex-wrap gap-1.5">
+          {HAZARDS.map((h) => {
+            const active = d.hazards_hit.includes(h);
+            return (
+              <button
+                key={h}
+                type="button"
+                onClick={() =>
+                  set({
+                    hazards_hit: active
+                      ? d.hazards_hit.filter((x) => x !== h)
+                      : [...d.hazards_hit, h],
+                  })
+                }
+                className={active ? "chip-on" : "chip-off"}
+              >
+                {hazardLabel(h)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <CountChoice
+        label="Balls lost"
+        value={d.balls_lost}
+        onChange={(v) => set({ balls_lost: v })}
+        min={1}
+      />
+      <CountChoice
+        label="Hotdogs"
+        value={d.hotdogs}
+        onChange={(v) => set({ hotdogs: v })}
+        min={1}
+      />
+      <BeerEntry
+        options={beerOptions}
+        beers={d.beers}
+        onChange={(b) => set({ beers: b })}
+      />
+      <NicotineEntry items={d.nicotine} onChange={(n) => set({ nicotine: n })} />
+      <WeedEntry items={d.weed} onChange={(w) => set({ weed: w })} />
+    </div>
+  );
+}
+
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="card p-4 text-center">
       <div className="text-2xl font-bold text-fairway">{value}</div>
       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+    </div>
+  );
+}
+
+// Tile with the headline on top and a single big value below (e.g. Beers).
+function HeadlineTile({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="card p-4">
+      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <div className="text-2xl font-bold text-fairway">{value}</div>
+    </div>
+  );
+}
+
+// Tile with the headline on top and a per-type breakdown laid out like the
+// putt-distribution totals / score averages (small label over a bold value).
+function BreakdownTile({
+  title,
+  items,
+}: {
+  title: string;
+  items: { label: string; value: string }[];
+}) {
+  return (
+    <div className="card p-4">
+      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {items.map((it) => (
+          <div key={it.label}>
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">
+              {it.label}
+            </div>
+            <div className="text-lg font-bold text-fairway">{it.value}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -496,12 +742,15 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const [metaSaving, setMetaSaving] = useState(false);
   const [tees, setTees] = useState<Tee[]>([]);
   const [meta, setMeta] = useState({ played_on: "", tee_id: "", time_of_day: "" });
+  const [editingHole, setEditingHole] = useState<number | null>(null);
+  const [beerOptions, setBeerOptions] = useState<Beer[]>([]);
 
   useEffect(() => {
     api
       .getRound(id)
       .then(setRound)
       .catch(() => setError("Could not load this round."));
+    api.listBeers().then(setBeerOptions).catch(() => {});
   }, [id]);
 
   if (error) return <p className="text-red-700">{error}</p>;
@@ -562,6 +811,24 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
     if (h.par >= 4 && h.driving_accuracy)
       fwCounts[h.driving_accuracy] = (fwCounts[h.driving_accuracy] || 0) + 1;
   });
+
+  // per-type breakdowns for the Round-totals tiles
+  const hazardByType: Record<string, number> = {};
+  const nicByType: Record<string, number> = {};
+  round.holes.forEach((h) => {
+    h.hazards_hit.forEach((z) => {
+      hazardByType[z] = (hazardByType[z] || 0) + 1;
+    });
+    h.nicotine.forEach((n) => {
+      nicByType[n.type] = (nicByType[n.type] || 0) + n.quantity;
+    });
+  });
+  const hazardItems = Object.entries(hazardByType)
+    .sort((a, b) => b[1] - a[1])
+    .map(([z, n]) => ({ label: hazardLabel(z, true), value: String(n) }));
+  const nicItems = Object.entries(nicByType)
+    .sort((a, b) => b[1] - a[1])
+    .map(([t2, n]) => ({ label: nicotineLabel(t2), value: String(n) }));
 
   function startEdit() {
     const d: Draft = {};
@@ -734,29 +1001,49 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
 
       {/* hole-by-hole cards: 3 per row, vertical/stacked */}
       <section>
-        <h2 className="mb-2 font-semibold">Hole by hole</h2>
+        <h2 className="mb-1 font-semibold">Hole by hole</h2>
+        <p className="mb-2 text-xs text-gray-400">Tap ✏️ on a hole to edit its stats.</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-          {round.holes.map((h) => (
-            <HoleCard key={h.hole_id} h={h} />
-          ))}
+          {round.holes.map((h) =>
+            editingHole === h.hole_id ? (
+              <div key={h.hole_id} className="col-span-full">
+                <HoleEditCard
+                  hole={h}
+                  roundId={id}
+                  beerOptions={beerOptions}
+                  onSaved={(fresh) => {
+                    setRound(fresh);
+                    setEditingHole(null);
+                  }}
+                  onCancel={() => setEditingHole(null)}
+                />
+              </div>
+            ) : (
+              <HoleCard
+                key={h.hole_id}
+                h={h}
+                onEdit={() => setEditingHole(h.hole_id)}
+              />
+            )
+          )}
         </div>
       </section>
 
       <section>
         <h2 className="mb-2 font-semibold">Round totals</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {t.hazards > 0 && <Summary label="Hazards hit" value={String(t.hazards)} />}
+          {t.hazards > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}
           {t.balls_lost > 0 && <Summary label="Balls lost" value={String(t.balls_lost)} />}
           {t.penalty_strokes > 0 && (
             <Summary label="Penalty strokes" value={String(t.penalty_strokes)} />
           )}
           {t.beers > 0 && (
-            <Summary
-              label="Beers"
+            <HeadlineTile
+              title="Beers"
               value={`${t.beers}${t.beer_oz ? ` · ${t.beer_oz} oz` : ""}`}
             />
           )}
-          {t.nicotine > 0 && <Summary label="Nicotine" value={String(t.nicotine)} />}
+          {t.nicotine > 0 && <BreakdownTile title="Nicotine" items={nicItems} />}
           {t.weed > 0 && <Summary label="Weed" value={String(t.weed)} />}
           {t.hotdogs > 0 && <Summary label="Hotdogs" value={String(t.hotdogs)} />}
         </div>
