@@ -104,7 +104,8 @@ def get_round(round_id: int):
             SELECT r.round_id, r.played_on, r.time_of_day,
                    r.round_duration::text AS round_duration,
                    r.course_id, c.name AS course_name,
-                   r.tee_id, t.name AS tee_name
+                   r.tee_id, t.name AS tee_name,
+                   t.course_rating, t.slope_rating
             FROM rounds r
             JOIN courses c ON c.id = r.course_id
             LEFT JOIN tees t ON t.id = r.tee_id

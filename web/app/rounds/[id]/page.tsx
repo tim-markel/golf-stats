@@ -761,6 +761,16 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const coursePar = round.holes.reduce((a, h) => a + h.par, 0);
   const t = round.totals;
 
+  // WHS-style score differential: (113 / slope) × (score − rating). Only valid
+  // for a full 18-hole round on a rated tee.
+  const differential =
+    round.holes.length === 18 &&
+    round.total_score != null &&
+    round.course_rating != null &&
+    round.slope_rating != null
+      ? (113 / round.slope_rating) * (round.total_score - round.course_rating)
+      : null;
+
   const fairwaysTotal = round.holes.filter((h) => h.par >= 4).length;
   const fairwaysHit = round.holes.filter((h) => h.driving_accuracy === "fairway").length;
   const holesCount = round.holes.length;
@@ -965,14 +975,30 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
           <div className="text-sm text-gray-500">
             {relToPar(round.total_score, coursePar)} · par {coursePar}
           </div>
+          {differential != null && (
+            <div className="text-xs text-gray-500">
+              Differential{" "}
+              <span className="font-semibold text-ink">{differential.toFixed(1)}</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* paper scorecard */}
       <section className="overflow-hidden rounded-xl border border-paper-line bg-paper shadow-card">
         <div className="flex items-center justify-between border-b border-paper-line px-4 py-2">
-          <span className="text-sm font-semibold uppercase tracking-wide text-ink/70">
-            Scorecard
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-sm font-semibold uppercase tracking-wide text-ink/70">
+              Scorecard
+            </span>
+            {(round.course_rating != null || round.slope_rating != null) && (
+              <span className="text-xs text-ink/50">
+                {round.tee_name ? `${round.tee_name} · ` : ""}
+                {round.course_rating != null ? `Rating ${round.course_rating}` : ""}
+                {round.course_rating != null && round.slope_rating != null ? " · " : ""}
+                {round.slope_rating != null ? `Slope ${round.slope_rating}` : ""}
+              </span>
+            )}
           </span>
           {editing ? (
             <div className="flex gap-2">

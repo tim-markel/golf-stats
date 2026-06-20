@@ -317,6 +317,8 @@ class RoundDetail(BaseModel):
     course_name: str
     tee_id: Optional[int] = None
     tee_name: Optional[str] = None
+    course_rating: Optional[float] = None
+    slope_rating: Optional[int] = None
     out_score: Optional[int] = None
     in_score: Optional[int] = None
     total_score: Optional[int] = None

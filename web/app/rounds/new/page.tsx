@@ -49,7 +49,14 @@ function emptyHoleStat(hole_id: number): HoleStatIn {
   };
 }
 
-// Running scorecard for the holes being played, above the entry card.
+// Running scorecard for the holes being played, above the entry card. For an
+// 18-hole round it shows Out / In subtotals like a paper scorecard.
+type MiniCol =
+  | { kind: "hole"; h: { id: number; hole_number: number; par: number }; i: number }
+  | { kind: "out" }
+  | { kind: "in" }
+  | { kind: "tot" };
+
 function MiniScorecard({
   holes,
   stats,
@@ -62,40 +69,80 @@ function MiniScorecard({
   const div = "border-l border-paper-line";
   const tot = "border-l-2 border-paper-line";
   const row = "border-b border-paper-line";
-  const totScore = stats.reduce((a, s) => a + (s?.score ?? 0), 0);
+
+  const hasBoth =
+    holes.some((h) => h.hole_number <= 9) && holes.some((h) => h.hole_number > 9);
+  const parFront = holes.reduce((a, h) => a + (h.hole_number <= 9 ? h.par : 0), 0);
+  const parBack = holes.reduce((a, h) => a + (h.hole_number > 9 ? h.par : 0), 0);
+  const scFront = holes.reduce((a, h, i) => a + (h.hole_number <= 9 ? stats[i]?.score ?? 0 : 0), 0);
+  const scBack = holes.reduce((a, h, i) => a + (h.hole_number > 9 ? stats[i]?.score ?? 0 : 0), 0);
+
+  // build the column order: holes, with Out after #9 and In at the end
+  const cols: MiniCol[] = [];
+  holes.forEach((h, i) => {
+    cols.push({ kind: "hole", h, i });
+    if (hasBoth && h.hole_number === 9) cols.push({ kind: "out" });
+  });
+  if (hasBoth) cols.push({ kind: "in" });
+  cols.push({ kind: "tot" });
+
+  const subLabel = { out: "Out", in: "In", tot: "Tot" } as const;
+  const parOf = (k: "out" | "in" | "tot") =>
+    k === "out" ? parFront : k === "in" ? parBack : parFront + parBack;
+  const scOf = (k: "out" | "in" | "tot") =>
+    k === "out" ? scFront : k === "in" ? scBack : scFront + scBack;
+
   return (
     <div className="overflow-x-auto rounded-xl border border-paper-line bg-paper p-2">
       <table className="w-full min-w-[480px] text-center text-xs text-ink">
         <tbody>
           <tr className={`${row} font-semibold uppercase tracking-wide text-ink/70`}>
             <td className="px-1 py-1 text-left">Hole</td>
-            {holes.map((h, i) => (
-              <td key={h.id} className={`px-1 py-1 ${div} ${i === current ? "text-fairway" : ""}`}>
-                {h.hole_number}
-              </td>
-            ))}
-            <td className={`px-1 py-1 ${tot}`}>Tot</td>
+            {cols.map((c, k) =>
+              c.kind === "hole" ? (
+                <td
+                  key={k}
+                  className={`px-1 py-1 ${div} ${c.i === current ? "text-fairway" : ""}`}
+                >
+                  {c.h.hole_number}
+                </td>
+              ) : (
+                <td key={k} className={`px-1 py-1 ${tot}`}>
+                  {subLabel[c.kind]}
+                </td>
+              )
+            )}
           </tr>
           <tr className={`${row} text-ink/70`}>
             <td className="px-1 py-1 text-left">Par</td>
-            {holes.map((h) => (
-              <td key={h.id} className={`px-1 py-1 ${div}`}>{h.par}</td>
-            ))}
-            <td className={`px-1 py-1 font-semibold ${tot}`}>
-              {holes.reduce((a, h) => a + h.par, 0)}
-            </td>
+            {cols.map((c, k) =>
+              c.kind === "hole" ? (
+                <td key={k} className={`px-1 py-1 ${div}`}>
+                  {c.h.par}
+                </td>
+              ) : (
+                <td key={k} className={`px-1 py-1 font-semibold ${tot}`}>
+                  {parOf(c.kind)}
+                </td>
+              )
+            )}
           </tr>
           <tr>
             <td className="px-1 py-1 text-left">Score</td>
-            {holes.map((h, i) => (
-              <td
-                key={h.id}
-                className={`px-1 py-1 ${div} ${i === current ? "bg-fairway/10" : ""}`}
-              >
-                {stats[i]?.score != null ? scoreMark(stats[i].score as number, h.par) : "·"}
-              </td>
-            ))}
-            <td className={`px-1 py-1 font-bold ${tot}`}>{totScore || ""}</td>
+            {cols.map((c, k) =>
+              c.kind === "hole" ? (
+                <td
+                  key={k}
+                  className={`px-1 py-1 ${div} ${c.i === current ? "bg-fairway/10" : ""}`}
+                >
+                  {stats[c.i]?.score != null ? scoreMark(stats[c.i].score as number, c.h.par) : "·"}
+                </td>
+              ) : (
+                <td key={k} className={`px-1 py-1 font-bold ${tot}`}>
+                  {scOf(c.kind) || ""}
+                </td>
+              )
+            )}
           </tr>
         </tbody>
       </table>

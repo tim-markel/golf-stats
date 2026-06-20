@@ -288,6 +288,8 @@ export interface RoundDetail {
   course_name: string;
   tee_id: number | null;
   tee_name: string | null;
+  course_rating: number | null;
+  slope_rating: number | null;
   out_score: number | null;
   in_score: number | null;
   total_score: number | null;
