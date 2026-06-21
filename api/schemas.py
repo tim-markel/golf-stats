@@ -154,6 +154,35 @@ class GolferStats(BaseModel):
     rounds: list[RoundSummary] = []
 
 
+# --- season totals (mirrors a round's totals, aggregated over all rounds) ---
+class ParAverage(BaseModel):
+    par: int
+    avg: float
+
+
+class SeasonStats(BaseModel):
+    rounds_played: int = 0
+    holes_played: int = 0
+    hazard_by_type: dict[str, int] = Field(default_factory=dict)
+    nicotine_by_type: dict[str, int] = Field(default_factory=dict)
+    balls_lost: int = 0
+    penalty_strokes: int = 0
+    beers: int = 0
+    beer_oz: float = 0
+    weed: int = 0
+    hotdogs: int = 0
+    approach_counts: dict[str, int] = Field(default_factory=dict)
+    gir_count: int = 0
+    fw_counts: dict[str, int] = Field(default_factory=dict)
+    fairways_hit: int = 0
+    fairways_total: int = 0
+    score_counts: dict[str, int] = Field(default_factory=dict)
+    putt_counts: dict[str, int] = Field(default_factory=dict)
+    par_averages: list[ParAverage] = Field(default_factory=list)
+    total_putts: int = 0
+    putt_holes: int = 0
+
+
 # --- leaderboard -----------------------------------------------------------
 class LeaderboardGolfer(BaseModel):
     golfer_id: int

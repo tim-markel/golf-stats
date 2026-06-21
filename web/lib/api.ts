@@ -140,6 +140,29 @@ export interface GolferStats {
   rounds: RoundSummary[];
 }
 
+export interface SeasonStats {
+  rounds_played: number;
+  holes_played: number;
+  hazard_by_type: Record<string, number>;
+  nicotine_by_type: Record<string, number>;
+  balls_lost: number;
+  penalty_strokes: number;
+  beers: number;
+  beer_oz: number;
+  weed: number;
+  hotdogs: number;
+  approach_counts: Record<string, number>;
+  gir_count: number;
+  fw_counts: Record<string, number>;
+  fairways_hit: number;
+  fairways_total: number;
+  score_counts: Record<string, number>;
+  putt_counts: Record<string, number>;
+  par_averages: { par: number; avg: number }[];
+  total_putts: number;
+  putt_holes: number;
+}
+
 export interface LeaderboardGolfer {
   golfer_id: number;
   name: string;
@@ -333,6 +356,7 @@ export const api = {
   updateGolfer: (id: number, b: { name?: string; handicap?: number | null }) =>
     patch<Golfer>(`/golfers/${id}`, b),
   golferStats: (id: number) => get<GolferStats>(`/golfers/${id}/stats`),
+  golferSeason: (id: number) => get<SeasonStats>(`/golfers/${id}/season`),
   leaderboard: () => get<Leaderboard>("/leaderboard"),
   listCourses: () => get<Course[]>("/courses"),
   getCourse: (id: number) => get<CourseDetail>(`/courses/${id}`),

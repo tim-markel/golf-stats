@@ -13,8 +13,34 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { api, GolferStats } from "@/lib/api";
+import { api, GolferStats, SeasonStats } from "@/lib/api";
+import StatTotals, { StatTotalsData } from "@/components/StatTotals";
 import { useGolfer } from "@/lib/golfer-context";
+
+// Map the season endpoint payload onto the shared StatTotals data shape.
+function seasonToTotals(s: SeasonStats): StatTotalsData {
+  return {
+    hazardByType: s.hazard_by_type,
+    nicByType: s.nicotine_by_type,
+    ballsLost: s.balls_lost,
+    penaltyStrokes: s.penalty_strokes,
+    beers: s.beers,
+    beerOz: s.beer_oz,
+    weed: s.weed,
+    hotdogs: s.hotdogs,
+    approachCounts: s.approach_counts,
+    girCount: s.gir_count,
+    holesCount: s.holes_played,
+    fwCounts: s.fw_counts,
+    fairwaysHit: s.fairways_hit,
+    fairwaysTotal: s.fairways_total,
+    scoreCounts: s.score_counts,
+    puttCounts: s.putt_counts,
+    parAverages: s.par_averages,
+    totalPutts: s.putt_holes ? s.total_putts : null,
+    avgPutts: s.putt_holes ? s.total_putts / s.putt_holes : null,
+  };
+}
 
 function StatCard({
   label,
@@ -80,6 +106,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
   const router = useRouter();
   const { setActive } = useGolfer();
   const [data, setData] = useState<GolferStats | null>(null);
+  const [season, setSeason] = useState<SeasonStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function startNewRound() {
@@ -92,6 +119,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
       .golferStats(id)
       .then(setData)
       .catch(() => setError("Could not load stats."));
+    api.golferSeason(id).then(setSeason).catch(() => {});
   }, [id]);
 
   if (error) return <p className="text-red-700">{error}</p>;
@@ -179,6 +207,10 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
           </ResponsiveContainer>
         )}
       </section>
+
+      {season && season.holes_played > 0 && (
+        <StatTotals title="Season totals" data={seasonToTotals(season)} />
+      )}
 
       <section className="card">
         <h2 className="border-b px-4 py-3 font-semibold">Rounds</h2>

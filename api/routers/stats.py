@@ -1,10 +1,12 @@
 """Aggregated stats powering the golfer visualization page."""
 from __future__ import annotations
 
+from collections import defaultdict
+
 from fastapi import APIRouter, HTTPException
 
 from ..db import pool
-from ..schemas import GolferStats
+from ..schemas import GolferStats, SeasonStats
 
 router = APIRouter(prefix="/golfers", tags=["stats"])
 
@@ -73,6 +75,118 @@ def golfer_stats(golfer_id: int):
         "fairway_pct": fairway_pct,
         "handicap_index": handicap_index,
         "rounds": rounds,
+    }
+
+
+@router.get("/{golfer_id}/season", response_model=SeasonStats)
+def golfer_season(golfer_id: int):
+    """Season totals aggregated over all the golfer's holes — same buckets the
+    round page shows under "Round totals", summed across every round."""
+    with pool.connection() as conn:
+        if conn.execute(
+            "SELECT 1 FROM golfers WHERE golfer_id = %s", (golfer_id,)
+        ).fetchone() is None:
+            raise HTTPException(404, "Golfer not found")
+
+        holes = conn.execute(
+            """
+            SELECT h.par, hs.score, hs.putts, hs.driving_accuracy, hs.gir,
+                   hs.approach_accuracy, hs.penalty_strokes, hs.balls_lost,
+                   hs.hotdogs, hs.hazards_hit
+            FROM hole_stats hs
+            JOIN holes h ON h.id = hs.hole_id
+            JOIN rounds r ON r.round_id = hs.round_id
+            WHERE r.golfer_id = %s
+            """,
+            (golfer_id,),
+        ).fetchall()
+        rounds_played = conn.execute(
+            "SELECT COUNT(*) AS n FROM rounds WHERE golfer_id = %s", (golfer_id,)
+        ).fetchone()["n"]
+        beers = conn.execute(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(hb.size_oz), 0) AS oz "
+            "FROM hole_beer hb JOIN hole_stats hs ON hs.id = hb.hole_stat_id "
+            "JOIN rounds r ON r.round_id = hs.round_id WHERE r.golfer_id = %s",
+            (golfer_id,),
+        ).fetchone()
+        nic_rows = conn.execute(
+            "SELECT hn.type, COALESCE(SUM(hn.quantity), 0) AS n "
+            "FROM hole_nicotine hn JOIN hole_stats hs ON hs.id = hn.hole_stat_id "
+            "JOIN rounds r ON r.round_id = hs.round_id WHERE r.golfer_id = %s "
+            "GROUP BY hn.type",
+            (golfer_id,),
+        ).fetchall()
+        weed = conn.execute(
+            "SELECT COUNT(*) AS n FROM hole_weed hw "
+            "JOIN hole_stats hs ON hs.id = hw.hole_stat_id "
+            "JOIN rounds r ON r.round_id = hs.round_id WHERE r.golfer_id = %s",
+            (golfer_id,),
+        ).fetchone()
+
+    hazard_by_type: dict = defaultdict(int)
+    approach_counts: dict = defaultdict(int)
+    fw_counts: dict = defaultdict(int)
+    score_counts: dict = defaultdict(int)
+    putt_counts: dict = defaultdict(int)
+    par_groups: dict = defaultdict(list)
+    balls_lost = penalty_strokes = hotdogs = gir_count = 0
+    fairways_hit = fairways_total = total_putts = putt_holes = 0
+
+    for h in holes:
+        balls_lost += h["balls_lost"] or 0
+        penalty_strokes += h["penalty_strokes"] or 0
+        hotdogs += h["hotdogs"] or 0
+        for z in (h["hazards_hit"] or []):
+            hazard_by_type[z] += 1
+        if h["gir"]:
+            gir_count += 1
+        if h["approach_accuracy"]:
+            approach_counts[h["approach_accuracy"]] += 1
+        if h["par"] is not None and h["par"] >= 4:
+            fairways_total += 1
+            if h["driving_accuracy"]:
+                fw_counts[h["driving_accuracy"]] += 1
+                if h["driving_accuracy"] == "fairway":
+                    fairways_hit += 1
+        if h["putts"] is not None:
+            putt_holes += 1
+            total_putts += h["putts"]
+            k = ("1 putt" if h["putts"] <= 1 else "2 putts" if h["putts"] == 2
+                 else "3 putts" if h["putts"] == 3 else "4+ putts")
+            putt_counts[k] += 1
+        if h["score"] is not None and h["par"] is not None:
+            d = h["score"] - h["par"]
+            k = ("Eagle+" if d <= -2 else "Birdie" if d == -1 else "Par" if d == 0
+                 else "Bogey" if d == 1 else "Double" if d == 2 else "Triple+")
+            score_counts[k] += 1
+            par_groups[h["par"]].append(h["score"])
+
+    par_averages = [
+        {"par": p, "avg": round(sum(v) / len(v), 2)}
+        for p, v in sorted(par_groups.items())
+    ]
+
+    return {
+        "rounds_played": rounds_played,
+        "holes_played": len(holes),
+        "hazard_by_type": dict(hazard_by_type),
+        "nicotine_by_type": {r["type"]: int(r["n"]) for r in nic_rows},
+        "balls_lost": balls_lost,
+        "penalty_strokes": penalty_strokes,
+        "beers": beers["n"],
+        "beer_oz": float(beers["oz"]),
+        "weed": weed["n"],
+        "hotdogs": hotdogs,
+        "approach_counts": dict(approach_counts),
+        "gir_count": gir_count,
+        "fw_counts": dict(fw_counts),
+        "fairways_hit": fairways_hit,
+        "fairways_total": fairways_total,
+        "score_counts": dict(score_counts),
+        "putt_counts": dict(putt_counts),
+        "par_averages": par_averages,
+        "total_putts": total_putts,
+        "putt_holes": putt_holes,
     }
 
 

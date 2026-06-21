@@ -3,16 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   api,
   ApproachAccuracy,
   Beer,
@@ -27,6 +17,7 @@ import {
   Tee,
   weedLabel,
 } from "@/lib/api";
+import StatTotals, { StatTotalsData } from "@/components/StatTotals";
 import {
   BeerEntry,
   CountChoice,
@@ -518,216 +509,6 @@ function HoleEditCard({
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card p-4 text-center">
-      <div className="text-2xl font-bold text-fairway">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-    </div>
-  );
-}
-
-// Tile with the headline on top and a single big value below (e.g. Beers).
-function HeadlineTile({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="card p-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
-      <div className="text-2xl font-bold text-fairway">{value}</div>
-    </div>
-  );
-}
-
-// Tile with the headline on top and a per-type breakdown laid out like the
-// putt-distribution totals / score averages (small label over a bold value).
-function BreakdownTile({
-  title,
-  items,
-}: {
-  title: string;
-  items: { label: string; value: string }[];
-}) {
-  return (
-    <div className="card p-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        {items.map((it) => (
-          <div key={it.label}>
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">
-              {it.label}
-            </div>
-            <div className="text-lg font-bold text-fairway">{it.value}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Colorblind-friendly palette (Okabe-Ito).
-const CB = {
-  blue: "#0072B2",
-  green: "#009E73",
-  gray: "#999999",
-  orange: "#E69F00",
-  vermillion: "#D55E00",
-  purple: "#CC79A7",
-  sky: "#56B4E9",
-};
-
-const PUTT_DEFS = [
-  { name: "1 putt", color: CB.green },
-  { name: "2 putts", color: CB.sky },
-  { name: "3 putts", color: CB.orange },
-  { name: "4+ putts", color: CB.vermillion },
-];
-const SCORE_DEFS = [
-  { name: "Eagle+", color: CB.blue },
-  { name: "Birdie", color: CB.green },
-  { name: "Par", color: CB.gray },
-  { name: "Bogey", color: CB.orange },
-  { name: "Double", color: CB.vermillion },
-  { name: "Triple+", color: CB.purple },
-];
-function buildPie(
-  defs: { name: string; color: string }[],
-  counts: Record<string, number>
-) {
-  return defs
-    .map((d) => ({ name: d.name, value: counts[d.name] || 0, color: d.color }))
-    .filter((d) => d.value > 0);
-}
-
-function StatBar({
-  title,
-  data,
-  side,
-}: {
-  title: string;
-  data: { name: string; value: number }[];
-  side?: React.ReactNode;
-}) {
-  if (data.length === 0) return null;
-  const total = data.reduce((a, d) => a + d.value, 0) || 1;
-  const Tip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    const v = payload[0].value;
-    return (
-      <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm shadow-card">
-        <div className="font-semibold">{label}</div>
-        <div className="font-bold text-fairway">{Math.round((v / total) * 100)}%</div>
-        <div className="text-xs text-gray-500">
-          {v} of {total}
-        </div>
-      </div>
-    );
-  };
-  const chart = (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} margin={{ left: -22, right: 8, top: 18 }}>
-        <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
-        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-        <Tooltip content={<Tip />} cursor={{ fill: "rgba(21,102,63,0.06)" }} />
-        <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={48} fill="#1a7a4a">
-          <LabelList
-            dataKey="value"
-            position="top"
-            style={{ fontSize: 12, fontWeight: 600, fill: "#16201b" }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-  return (
-    <div className="card p-4">
-      <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-      {side ? (
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">{chart}</div>
-          {side}
-        </div>
-      ) : (
-        chart
-      )}
-    </div>
-  );
-}
-
-// A spatial "target": a 3x3 grid where each cell is a landing zone (center =
-// on target). Cell shade scales with how often shots landed there. A summary
-// (GIR / FW count) sits beside it.
-const APPROACH_LAYOUT = [
-  "long_left", "long", "long_right",
-  "left", "on", "right",
-  "short_left", "short", "short_right",
-];
-const DRIVING_LAYOUT = [
-  null, "long", null,
-  "left", "fairway", "right",
-  null, "short", null,
-];
-
-function DispersionTarget({
-  title,
-  layout,
-  centerKey,
-  centerLabel,
-  counts,
-  summaryLabel,
-  summaryValue,
-}: {
-  title: string;
-  layout: (string | null)[];
-  centerKey: string;
-  centerLabel: string;
-  counts: Record<string, number>;
-  summaryLabel: string;
-  summaryValue: string;
-}) {
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  if (total === 0) return null;
-  const maxPct = Math.max(...layout.filter(Boolean).map((k) => counts[k!] || 0)) / total || 1;
-
-  return (
-    <div className="card p-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
-      <div className="flex items-center justify-between gap-4">
-        <div className="grid w-40 shrink-0 grid-cols-3 gap-1">
-          {layout.map((key, i) => {
-            if (key == null) return <div key={i} className="aspect-square" />;
-            const count = counts[key] || 0;
-            const frac = count / total;
-            const pct = Math.round(frac * 100);
-            const center = key === centerKey;
-            const alpha = pct === 0 ? 0 : 0.18 + 0.5 * (frac / maxPct);
-            return (
-              <div
-                key={i}
-                className={`group relative flex aspect-square items-center justify-center rounded text-xs font-semibold ${
-                  center ? "ring-2 ring-fairway" : ""
-                } ${pct === 0 ? "bg-gray-50 text-gray-400" : "text-ink"}`}
-                style={pct === 0 ? undefined : { background: `rgba(26,122,74,${alpha})` }}
-              >
-                {pct}%
-                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-ink px-1.5 py-0.5 text-[10px] font-medium text-white group-hover:block">
-                  {count} {count === 1 ? "shot" : "shots"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="shrink-0 px-2 text-center">
-          <div className="text-xs uppercase tracking-wide text-gray-500">{summaryLabel}</div>
-          <div className="text-2xl font-bold text-fairway">{summaryValue}</div>
-        </div>
-      </div>
-      <p className="mt-2 text-center text-[11px] text-gray-400">
-        center = {centerLabel} · ▲ long ▼ short ◀ left ▶ right
-      </p>
-    </div>
-  );
-}
-
 export default function RoundScorecardPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
@@ -775,16 +556,20 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const fairwaysHit = round.holes.filter((h) => h.driving_accuracy === "fairway").length;
   const holesCount = round.holes.length;
   const girCount = round.holes.filter((h) => h.gir).length;
+
+  // count buckets for the totals section (same shapes StatTotals expects)
   const approachCounts: Record<string, number> = {};
+  const fwCounts: Record<string, number> = {};
+  const puttCounts: Record<string, number> = {};
+  const scoreCounts: Record<string, number> = {};
+  const hazardByType: Record<string, number> = {};
+  const nicByType: Record<string, number> = {};
+  const parGroups: Record<number, number[]> = {};
   round.holes.forEach((h) => {
     if (h.approach_accuracy)
       approachCounts[h.approach_accuracy] = (approachCounts[h.approach_accuracy] || 0) + 1;
-  });
-
-  // distributions for the pies
-  const puttCounts: Record<string, number> = {};
-  const scoreCounts: Record<string, number> = {};
-  round.holes.forEach((h) => {
+    if (h.par >= 4 && h.driving_accuracy)
+      fwCounts[h.driving_accuracy] = (fwCounts[h.driving_accuracy] || 0) + 1;
     if (h.putts != null) {
       const k =
         h.putts <= 1 ? "1 putt" : h.putts === 2 ? "2 putts" : h.putts === 3 ? "3 putts" : "4+ putts";
@@ -795,15 +580,14 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       const k =
         d <= -2 ? "Eagle+" : d === -1 ? "Birdie" : d === 0 ? "Par" : d === 1 ? "Bogey" : d === 2 ? "Double" : "Triple+";
       scoreCounts[k] = (scoreCounts[k] || 0) + 1;
+      (parGroups[h.par] = parGroups[h.par] || []).push(h.score);
     }
-  });
-  const scorePie = buildPie(SCORE_DEFS, scoreCounts);
-  const puttPie = buildPie(PUTT_DEFS, puttCounts);
-
-  // average score per par type (3s / 4s / 5s)
-  const parGroups: Record<number, number[]> = {};
-  round.holes.forEach((h) => {
-    if (h.score != null) (parGroups[h.par] = parGroups[h.par] || []).push(h.score);
+    h.hazards_hit.forEach((z) => {
+      hazardByType[z] = (hazardByType[z] || 0) + 1;
+    });
+    h.nicotine.forEach((n) => {
+      nicByType[n.type] = (nicByType[n.type] || 0) + n.quantity;
+    });
   });
   const parAverages = Object.keys(parGroups)
     .map(Number)
@@ -815,30 +599,27 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const puttsHoles = round.holes.filter((h) => h.putts != null).length;
   const avgPutts = puttsHoles && round.total_putts != null ? round.total_putts / puttsHoles : null;
 
-  // driving-accuracy counts for the Fairways target
-  const fwCounts: Record<string, number> = {};
-  round.holes.forEach((h) => {
-    if (h.par >= 4 && h.driving_accuracy)
-      fwCounts[h.driving_accuracy] = (fwCounts[h.driving_accuracy] || 0) + 1;
-  });
-
-  // per-type breakdowns for the Round-totals tiles
-  const hazardByType: Record<string, number> = {};
-  const nicByType: Record<string, number> = {};
-  round.holes.forEach((h) => {
-    h.hazards_hit.forEach((z) => {
-      hazardByType[z] = (hazardByType[z] || 0) + 1;
-    });
-    h.nicotine.forEach((n) => {
-      nicByType[n.type] = (nicByType[n.type] || 0) + n.quantity;
-    });
-  });
-  const hazardItems = Object.entries(hazardByType)
-    .sort((a, b) => b[1] - a[1])
-    .map(([z, n]) => ({ label: hazardLabel(z, true), value: String(n) }));
-  const nicItems = Object.entries(nicByType)
-    .sort((a, b) => b[1] - a[1])
-    .map(([t2, n]) => ({ label: nicotineLabel(t2), value: String(n) }));
+  const totalsData: StatTotalsData = {
+    hazardByType,
+    nicByType,
+    ballsLost: t.balls_lost,
+    penaltyStrokes: t.penalty_strokes,
+    beers: t.beers,
+    beerOz: t.beer_oz,
+    weed: t.weed,
+    hotdogs: t.hotdogs,
+    approachCounts,
+    girCount,
+    holesCount,
+    fwCounts,
+    fairwaysHit,
+    fairwaysTotal,
+    scoreCounts,
+    puttCounts,
+    parAverages,
+    totalPutts: round.total_putts,
+    avgPutts,
+  };
 
   function startEdit() {
     const d: Draft = {};
@@ -1055,86 +836,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-2 font-semibold">Round totals</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {t.hazards > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}
-          {t.balls_lost > 0 && <Summary label="Balls lost" value={String(t.balls_lost)} />}
-          {t.penalty_strokes > 0 && (
-            <Summary label="Penalty strokes" value={String(t.penalty_strokes)} />
-          )}
-          {t.beers > 0 && (
-            <HeadlineTile
-              title="Beers"
-              value={`${t.beers}${t.beer_oz ? ` · ${t.beer_oz} oz` : ""}`}
-            />
-          )}
-          {t.nicotine > 0 && <BreakdownTile title="Nicotine" items={nicItems} />}
-          {t.weed > 0 && <Summary label="Weed" value={String(t.weed)} />}
-          {t.hotdogs > 0 && <Summary label="Hotdogs" value={String(t.hotdogs)} />}
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <DispersionTarget
-            title="Approach"
-            layout={APPROACH_LAYOUT}
-            centerKey="on"
-            centerLabel="green hit"
-            counts={approachCounts}
-            summaryLabel="GIR"
-            summaryValue={`${girCount}/${holesCount}`}
-          />
-          <DispersionTarget
-            title="Fairways"
-            layout={DRIVING_LAYOUT}
-            centerKey="fairway"
-            centerLabel="FW hit"
-            counts={fwCounts}
-            summaryLabel="FW"
-            summaryValue={`${fairwaysHit}/${fairwaysTotal}`}
-          />
-          <StatBar
-            title="Score distribution"
-            data={scorePie}
-            side={
-              parAverages.length ? (
-                <div className="shrink-0 space-y-1.5 px-1 text-center">
-                  {parAverages.map((p) => (
-                    <div key={p.par}>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500">
-                        Par {p.par}
-                      </div>
-                      <div className="text-lg font-bold text-fairway">{p.avg.toFixed(1)}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : undefined
-            }
-          />
-          <StatBar
-            title="Putt distribution"
-            data={puttPie}
-            side={
-              round.total_putts != null ? (
-                <div className="shrink-0 space-y-1.5 px-1 text-center">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
-                    <div className="text-lg font-bold text-fairway">{round.total_putts}</div>
-                  </div>
-                  {avgPutts != null && (
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500">
-                        Avg/hole
-                      </div>
-                      <div className="text-lg font-bold text-fairway">{avgPutts.toFixed(1)}</div>
-                    </div>
-                  )}
-                </div>
-              ) : undefined
-            }
-          />
-        </div>
-      </section>
+      <StatTotals title="Round totals" data={totalsData} />
     </div>
   );
 }
