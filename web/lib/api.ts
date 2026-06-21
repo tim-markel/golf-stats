@@ -153,6 +153,8 @@ export interface SeasonStats {
   hotdogs: number;
   approach_counts: Record<string, number>;
   gir_count: number;
+  up_downs_made: number;
+  up_downs_attempts: number;
   fw_counts: Record<string, number>;
   fairways_hit: number;
   fairways_total: number;

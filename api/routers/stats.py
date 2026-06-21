@@ -91,8 +91,8 @@ def golfer_season(golfer_id: int):
         holes = conn.execute(
             """
             SELECT h.par, hs.score, hs.putts, hs.driving_accuracy, hs.gir,
-                   hs.approach_accuracy, hs.penalty_strokes, hs.balls_lost,
-                   hs.hotdogs, hs.hazards_hit
+                   hs.up_and_down, hs.approach_accuracy, hs.penalty_strokes,
+                   hs.balls_lost, hs.hotdogs, hs.hazards_hit
             FROM hole_stats hs
             JOIN holes h ON h.id = hs.hole_id
             JOIN rounds r ON r.round_id = hs.round_id
@@ -131,6 +131,7 @@ def golfer_season(golfer_id: int):
     par_groups: dict = defaultdict(list)
     balls_lost = penalty_strokes = hotdogs = gir_count = 0
     fairways_hit = fairways_total = total_putts = putt_holes = 0
+    up_downs_made = up_downs_attempts = 0
 
     for h in holes:
         balls_lost += h["balls_lost"] or 0
@@ -140,6 +141,10 @@ def golfer_season(golfer_id: int):
             hazard_by_type[z] += 1
         if h["gir"]:
             gir_count += 1
+        if h["up_and_down"] is not None:
+            up_downs_attempts += 1
+            if h["up_and_down"]:
+                up_downs_made += 1
         if h["approach_accuracy"]:
             approach_counts[h["approach_accuracy"]] += 1
         if h["par"] is not None and h["par"] >= 4:
@@ -179,6 +184,8 @@ def golfer_season(golfer_id: int):
         "hotdogs": hotdogs,
         "approach_counts": dict(approach_counts),
         "gir_count": gir_count,
+        "up_downs_made": up_downs_made,
+        "up_downs_attempts": up_downs_attempts,
         "fw_counts": dict(fw_counts),
         "fairways_hit": fairways_hit,
         "fairways_total": fairways_total,

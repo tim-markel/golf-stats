@@ -28,6 +28,8 @@ export interface StatTotalsData {
   approachCounts: Record<string, number>;
   girCount: number;
   holesCount: number;
+  upDownsMade: number;
+  upDownsAttempts: number;
   fwCounts: Record<string, number>;
   fairwaysHit: number;
   fairwaysTotal: number;
@@ -266,14 +268,21 @@ export default function StatTotals({
   const scorePie = buildPie(SCORE_DEFS, data.scoreCounts);
   const puttPie = buildPie(PUTT_DEFS, data.puttCounts);
 
+  // balls lost + penalty strokes share one tile
+  const troubleItems = [
+    ...(data.ballsLost > 0 ? [{ label: "Balls lost", value: String(data.ballsLost) }] : []),
+    ...(data.penaltyStrokes > 0
+      ? [{ label: "Penalty strokes", value: String(data.penaltyStrokes) }]
+      : []),
+  ];
+
   return (
     <section>
       <h2 className="mb-2 font-semibold">{title}</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {hazardsTotal > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}
-        {data.ballsLost > 0 && <Summary label="Balls lost" value={String(data.ballsLost)} />}
-        {data.penaltyStrokes > 0 && (
-          <Summary label="Penalty strokes" value={String(data.penaltyStrokes)} />
+        {troubleItems.length > 0 && (
+          <BreakdownTile title="Penalties" items={troubleItems} />
         )}
         {data.beers > 0 && (
           <HeadlineTile
@@ -282,6 +291,14 @@ export default function StatTotals({
           />
         )}
         {nicotineTotal > 0 && <BreakdownTile title="Nicotine" items={nicItems} />}
+        {data.upDownsAttempts > 0 && (
+          <HeadlineTile
+            title="Up & downs"
+            value={`${data.upDownsMade}/${data.upDownsAttempts} · ${Math.round(
+              (data.upDownsMade / data.upDownsAttempts) * 100
+            )}%`}
+          />
+        )}
         {data.weed > 0 && <Summary label="Weed" value={String(data.weed)} />}
         {data.hotdogs > 0 && <Summary label="Hotdogs" value={String(data.hotdogs)} />}
       </div>

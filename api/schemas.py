@@ -173,6 +173,8 @@ class SeasonStats(BaseModel):
     hotdogs: int = 0
     approach_counts: dict[str, int] = Field(default_factory=dict)
     gir_count: int = 0
+    up_downs_made: int = 0
+    up_downs_attempts: int = 0
     fw_counts: dict[str, int] = Field(default_factory=dict)
     fairways_hit: int = 0
     fairways_total: int = 0

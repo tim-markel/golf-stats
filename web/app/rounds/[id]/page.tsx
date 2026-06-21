@@ -556,6 +556,8 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const fairwaysHit = round.holes.filter((h) => h.driving_accuracy === "fairway").length;
   const holesCount = round.holes.length;
   const girCount = round.holes.filter((h) => h.gir).length;
+  const upDownsAttempts = round.holes.filter((h) => h.up_and_down != null).length;
+  const upDownsMade = round.holes.filter((h) => h.up_and_down === true).length;
 
   // count buckets for the totals section (same shapes StatTotals expects)
   const approachCounts: Record<string, number> = {};
@@ -611,6 +613,8 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
     approachCounts,
     girCount,
     holesCount,
+    upDownsMade,
+    upDownsAttempts,
     fwCounts,
     fairwaysHit,
     fairwaysTotal,

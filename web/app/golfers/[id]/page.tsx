@@ -31,6 +31,8 @@ function seasonToTotals(s: SeasonStats): StatTotalsData {
     approachCounts: s.approach_counts,
     girCount: s.gir_count,
     holesCount: s.holes_played,
+    upDownsMade: s.up_downs_made,
+    upDownsAttempts: s.up_downs_attempts,
     fwCounts: s.fw_counts,
     fairwaysHit: s.fairways_hit,
     fairwaysTotal: s.fairways_total,
