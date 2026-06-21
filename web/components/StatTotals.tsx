@@ -38,6 +38,8 @@ export interface StatTotalsData {
   parAverages: { par: number; avg: number }[];
   totalPutts: number | null;
   avgPutts: number | null;
+  // when set (season totals), the putt side shows Avg/round instead of Total
+  puttAvgPerRound?: number | null;
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
@@ -279,31 +281,7 @@ export default function StatTotals({
   return (
     <section>
       <h2 className="mb-2 font-semibold">{title}</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {hazardsTotal > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}
-        {troubleItems.length > 0 && (
-          <BreakdownTile title="Penalties" items={troubleItems} />
-        )}
-        {data.beers > 0 && (
-          <HeadlineTile
-            title="Beers"
-            value={`${data.beers}${data.beerOz ? ` · ${data.beerOz} oz` : ""}`}
-          />
-        )}
-        {nicotineTotal > 0 && <BreakdownTile title="Nicotine" items={nicItems} />}
-        {data.upDownsAttempts > 0 && (
-          <HeadlineTile
-            title="Up & downs"
-            value={`${data.upDownsMade}/${data.upDownsAttempts} · ${Math.round(
-              (data.upDownsMade / data.upDownsAttempts) * 100
-            )}%`}
-          />
-        )}
-        {data.weed > 0 && <Summary label="Weed" value={String(data.weed)} />}
-        {data.hotdogs > 0 && <Summary label="Hotdogs" value={String(data.hotdogs)} />}
-      </div>
-
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <DispersionTarget
           title="Approach"
           layout={APPROACH_LAYOUT}
@@ -346,10 +324,21 @@ export default function StatTotals({
           side={
             data.totalPutts != null ? (
               <div className="shrink-0 space-y-1.5 px-1 text-center">
-                <div>
-                  <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
-                  <div className="text-lg font-bold text-fairway">{data.totalPutts}</div>
-                </div>
+                {data.puttAvgPerRound != null ? (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                      Avg/round
+                    </div>
+                    <div className="text-lg font-bold text-fairway">
+                      {data.puttAvgPerRound.toFixed(1)}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
+                    <div className="text-lg font-bold text-fairway">{data.totalPutts}</div>
+                  </div>
+                )}
                 {data.avgPutts != null && (
                   <div>
                     <div className="text-[11px] uppercase tracking-wide text-gray-500">
@@ -364,6 +353,30 @@ export default function StatTotals({
             ) : undefined
           }
         />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {hazardsTotal > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}
+        {troubleItems.length > 0 && (
+          <BreakdownTile title="Penalties" items={troubleItems} />
+        )}
+        {data.beers > 0 && (
+          <HeadlineTile
+            title="Beers"
+            value={`${data.beers}${data.beerOz ? ` · ${data.beerOz} oz` : ""}`}
+          />
+        )}
+        {nicotineTotal > 0 && <BreakdownTile title="Nicotine" items={nicItems} />}
+        {data.upDownsAttempts > 0 && (
+          <HeadlineTile
+            title="Up & downs"
+            value={`${data.upDownsMade}/${data.upDownsAttempts} · ${Math.round(
+              (data.upDownsMade / data.upDownsAttempts) * 100
+            )}%`}
+          />
+        )}
+        {data.weed > 0 && <Summary label="Weed" value={String(data.weed)} />}
+        {data.hotdogs > 0 && <Summary label="Hotdogs" value={String(data.hotdogs)} />}
       </div>
     </section>
   );

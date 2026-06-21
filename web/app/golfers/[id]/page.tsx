@@ -41,6 +41,7 @@ function seasonToTotals(s: SeasonStats): StatTotalsData {
     parAverages: s.par_averages,
     totalPutts: s.putt_holes ? s.total_putts : null,
     avgPutts: s.putt_holes ? s.total_putts / s.putt_holes : null,
+    puttAvgPerRound: s.putt_avg_per_round,
   };
 }
 
@@ -154,16 +155,14 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard
           label="Hcp index"
           value={fmt(data.handicap_index)}
           info="Estimated handicap index — the average of your best recent score differentials. Each round's differential = (113 ÷ slope) × (score − course rating), using your tee's slope/rating. Uses the best of your last 20 rated 18-hole rounds (WHS-style). Not an official USGA/GHIN handicap."
         />
         <StatCard label="Avg score" value={fmt(data.avg_score)} />
-        <StatCard label="Avg putts" value={fmt(data.avg_putts)} />
-        <StatCard label="GIR" value={fmt(data.gir_pct, "%")} />
-        <StatCard label="Fairways" value={fmt(data.fairway_pct, "%")} />
+        <StatCard label="Rounds" value={String(data.rounds_played)} />
       </div>
 
       <section className="card p-4">

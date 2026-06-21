@@ -163,6 +163,7 @@ export interface SeasonStats {
   par_averages: { par: number; avg: number }[];
   total_putts: number;
   putt_holes: number;
+  putt_avg_per_round: number | null;
 }
 
 export interface LeaderboardGolfer {
