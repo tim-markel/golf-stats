@@ -17,6 +17,22 @@ import { api, GolferStats, SeasonStats } from "@/lib/api";
 import StatTotals, { StatTotalsData } from "@/components/StatTotals";
 import { useGolfer } from "@/lib/golfer-context";
 
+// Distribution of 18-hole round totals, one bar per score, filling gaps so the
+// bar chart runs continuously from the lowest to the highest score.
+function binScores(scores: number[]): { name: string; value: number }[] {
+  if (scores.length === 0) return [];
+  const lo = Math.min(...scores);
+  const hi = Math.max(...scores);
+  const bins: { name: string; value: number }[] = [];
+  for (let score = lo; score <= hi; score += 1) {
+    bins.push({
+      name: String(score),
+      value: scores.filter((x) => x === score).length,
+    });
+  }
+  return bins;
+}
+
 // Map the season endpoint payload onto the shared StatTotals data shape.
 function seasonToTotals(s: SeasonStats): StatTotalsData {
   return {
@@ -42,6 +58,14 @@ function seasonToTotals(s: SeasonStats): StatTotalsData {
     totalPutts: s.putt_holes ? s.total_putts : null,
     avgPutts: s.putt_holes ? s.total_putts / s.putt_holes : null,
     puttAvgPerRound: s.putt_avg_per_round,
+    roundScoreBins: binScores(s.round_scores),
+    roundScoreStats: s.round_scores.length
+      ? {
+          low: Math.min(...s.round_scores),
+          high: Math.max(...s.round_scores),
+          avg: s.round_scores.reduce((a, b) => a + b, 0) / s.round_scores.length,
+        }
+      : undefined,
   };
 }
 

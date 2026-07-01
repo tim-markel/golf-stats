@@ -184,6 +184,7 @@ class SeasonStats(BaseModel):
     total_putts: int = 0
     putt_holes: int = 0
     putt_avg_per_round: Optional[float] = None  # over 18-hole rounds only
+    round_scores: list[int] = Field(default_factory=list)  # 18-hole totals
 
 
 # --- leaderboard -----------------------------------------------------------

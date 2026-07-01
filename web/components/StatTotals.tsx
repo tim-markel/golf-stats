@@ -40,6 +40,9 @@ export interface StatTotalsData {
   avgPutts: number | null;
   // when set (season totals), the putt side shows Avg/round instead of Total
   puttAvgPerRound?: number | null;
+  // when set (season totals), adds a round-score distribution chart
+  roundScoreBins?: { name: string; value: number }[];
+  roundScoreStats?: { low: number; high: number; avg: number };
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
@@ -156,6 +159,7 @@ function StatBar({
           <LabelList
             dataKey="value"
             position="top"
+            formatter={(v: any) => (v ? v : "")}
             style={{ fontSize: 12, fontWeight: 600, fill: "#16201b" }}
           />
         </Bar>
@@ -281,7 +285,7 @@ export default function StatTotals({
   return (
     <section>
       <h2 className="mb-2 font-semibold">{title}</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <DispersionTarget
           title="Approach"
           layout={APPROACH_LAYOUT}
@@ -300,8 +304,38 @@ export default function StatTotals({
           summaryLabel="FW"
           summaryValue={`${data.fairwaysHit}/${data.fairwaysTotal}`}
         />
+        {data.roundScoreBins && data.roundScoreBins.length > 0 && (
+          <StatBar
+            title="Score Distribution"
+            data={data.roundScoreBins}
+            side={
+              data.roundScoreStats ? (
+                <div className="shrink-0 space-y-1.5 px-1 text-center">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Low</div>
+                    <div className="text-lg font-bold text-fairway">
+                      {data.roundScoreStats.low}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Avg</div>
+                    <div className="text-lg font-bold text-fairway">
+                      {data.roundScoreStats.avg.toFixed(1)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">High</div>
+                    <div className="text-lg font-bold text-fairway">
+                      {data.roundScoreStats.high}
+                    </div>
+                  </div>
+                </div>
+              ) : undefined
+            }
+          />
+        )}
         <StatBar
-          title="Score distribution"
+          title="Hole Score Distribution"
           data={scorePie}
           side={
             data.parAverages.length ? (
@@ -355,7 +389,7 @@ export default function StatTotals({
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-2 gap-3">
         {hazardsTotal > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}
         {troubleItems.length > 0 && (
           <BreakdownTile title="Penalties" items={troubleItems} />

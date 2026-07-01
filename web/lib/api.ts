@@ -164,6 +164,7 @@ export interface SeasonStats {
   total_putts: number;
   putt_holes: number;
   putt_avg_per_round: number | null;
+  round_scores: number[];
 }
 
 export interface LeaderboardGolfer {
