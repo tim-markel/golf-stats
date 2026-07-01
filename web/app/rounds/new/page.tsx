@@ -402,11 +402,33 @@ export default function NewRoundPage() {
       </div>
 
       <div className="card space-y-4 p-4">
-        <ScorePicker
-          par={hole.par}
-          value={s.score}
-          onChange={(v) => patch(current, { score: v })}
-        />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <ScorePicker
+              par={hole.par}
+              value={s.score}
+              onChange={(v) => patch(current, { score: v })}
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              disabled={current === 0}
+              onClick={() => setCurrent((c) => c - 1)}
+              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-40"
+            >
+              Prev Hole
+            </button>
+            <button
+              type="button"
+              disabled={s.score == null || submitting}
+              onClick={isLast ? submit : goNext}
+              className="rounded-md border border-fairway bg-fairway px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+            >
+              {isLast ? (submitting ? "Saving…" : "Save & Finish") : "Next Hole"}
+            </button>
+          </div>
+        </div>
 
         <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
           {showDriving && (
