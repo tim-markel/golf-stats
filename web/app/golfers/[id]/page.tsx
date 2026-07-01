@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -111,6 +111,9 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
   const [data, setData] = useState<GolferStats | null>(null);
   const [season, setSeason] = useState<SeasonStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Scores-by-round chart: show ~10 bars, scroll horizontally for the rest.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [chartW, setChartW] = useState(0);
 
   function startNewRound() {
     setActive(id); // the round will be for this golfer
@@ -125,6 +128,23 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
     api.golferSeason(id).then(setSeason).catch(() => {});
   }, [id]);
 
+  // measure the visible chart width (10 bars fit across it)
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setChartW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [data]);
+
+  // start scrolled to the most recent round (far right)
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [data, chartW]);
+
   if (error) return <p className="text-red-700">{error}</p>;
   if (!data) return <p className="text-gray-500">Loading…</p>;
 
@@ -137,6 +157,12 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
     date: r.played_on,
     score: r.total_score,
   }));
+
+  // 10 bars fill the viewport; more rounds overflow into a horizontal scroll
+  const VISIBLE_BARS = 10;
+  const perBar = chartW ? chartW / VISIBLE_BARS : 0;
+  const needScroll = chartData.length > VISIBLE_BARS && perBar > 0;
+  const innerWidth = needScroll ? Math.round(perBar * chartData.length) : undefined;
 
   return (
     <div className="space-y-6">
@@ -166,46 +192,55 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
       </div>
 
       <section className="card p-4">
-        <h2 className="mb-3 font-semibold">Scores by round</h2>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="font-semibold">Scores by round</h2>
+          {needScroll && (
+            <span className="text-xs text-gray-400">← scroll for older</span>
+          )}
+        </div>
         {chartData.length === 0 ? (
           <p className="text-sm text-gray-500">No rounds logged yet.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={chartData} margin={{ left: -16, right: 8, top: 8 }}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="label"
-                interval={0}
-                height={44}
-                tickLine={false}
-                tick={<CourseDateTick data={chartData} />}
-              />
-              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-              <Tooltip
-                content={<ScoreTooltip />}
-                cursor={{ fill: "rgba(21,102,63,0.06)" }}
-              />
-              <Bar
-                dataKey="score"
-                fill="#15663f"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={64}
-                cursor="pointer"
-                onClick={(d: any) => {
-                  const rid = d?.round_id ?? d?.payload?.round_id;
-                  if (rid) router.push(`/rounds/${rid}`);
-                }}
-              >
-                <LabelList
-                  dataKey="score"
-                  position="top"
-                  fontSize={12}
-                  fontWeight={600}
-                  fill="#15663f"
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div ref={scrollRef} className="overflow-x-auto">
+            <div style={{ width: needScroll ? innerWidth : "100%", height: 280 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={chartData} margin={{ left: -16, right: 8, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="label"
+                    interval={0}
+                    height={44}
+                    tickLine={false}
+                    tick={<CourseDateTick data={chartData} />}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip
+                    content={<ScoreTooltip />}
+                    cursor={{ fill: "rgba(21,102,63,0.06)" }}
+                  />
+                  <Bar
+                    dataKey="score"
+                    fill="#15663f"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={64}
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const rid = d?.round_id ?? d?.payload?.round_id;
+                      if (rid) router.push(`/rounds/${rid}`);
+                    }}
+                  >
+                    <LabelList
+                      dataKey="score"
+                      position="top"
+                      fontSize={12}
+                      fontWeight={600}
+                      fill="#15663f"
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
       </section>
 
