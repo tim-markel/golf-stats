@@ -150,6 +150,7 @@ export interface SeasonStats {
   beers: number;
   beer_oz: number;
   weed: number;
+  weed_by_type: Record<string, number>;
   hotdogs: number;
   approach_counts: Record<string, number>;
   gir_count: number;

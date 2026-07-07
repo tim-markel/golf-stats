@@ -566,6 +566,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const scoreCounts: Record<string, number> = {};
   const hazardByType: Record<string, number> = {};
   const nicByType: Record<string, number> = {};
+  const weedByType: Record<string, number> = {};
   const parGroups: Record<number, number[]> = {};
   round.holes.forEach((h) => {
     if (h.approach_accuracy)
@@ -590,6 +591,9 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
     h.nicotine.forEach((n) => {
       nicByType[n.type] = (nicByType[n.type] || 0) + n.quantity;
     });
+    h.weed.forEach((w) => {
+      weedByType[w.type] = (weedByType[w.type] || 0) + w.count;
+    });
   });
   const parAverages = Object.keys(parGroups)
     .map(Number)
@@ -604,6 +608,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const totalsData: StatTotalsData = {
     hazardByType,
     nicByType,
+    weedByType,
     ballsLost: t.balls_lost,
     penaltyStrokes: t.penalty_strokes,
     beers: t.beers,

@@ -14,11 +14,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { hazardLabel, nicotineLabel } from "@/lib/api";
+import { hazardLabel, nicotineLabel, weedLabel } from "@/lib/api";
 
 export interface StatTotalsData {
   hazardByType: Record<string, number>;
   nicByType: Record<string, number>;
+  weedByType: Record<string, number>;
   ballsLost: number;
   penaltyStrokes: number;
   beers: number;
@@ -43,15 +44,6 @@ export interface StatTotalsData {
   // when set (season totals), adds a round-score distribution chart
   roundScoreBins?: { name: string; value: number }[];
   roundScoreStats?: { low: number; high: number; avg: number };
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card p-4 text-center">
-      <div className="text-2xl font-bold text-fairway">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-    </div>
-  );
 }
 
 // Tile with the headline on top and a single big value below (e.g. Beers).
@@ -271,6 +263,10 @@ export default function StatTotals({
   const nicItems = Object.entries(data.nicByType)
     .sort((a, b) => b[1] - a[1])
     .map(([t, n]) => ({ label: nicotineLabel(t), value: String(n) }));
+  const weedTotal = Object.values(data.weedByType).reduce((a, b) => a + b, 0);
+  const weedItems = Object.entries(data.weedByType)
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => ({ label: weedLabel(t), value: String(n) }));
   const scorePie = buildPie(SCORE_DEFS, data.scoreCounts);
   const puttPie = buildPie(PUTT_DEFS, data.puttCounts);
 
@@ -409,8 +405,8 @@ export default function StatTotals({
             )}%`}
           />
         )}
-        {data.weed > 0 && <Summary label="Weed" value={String(data.weed)} />}
-        {data.hotdogs > 0 && <Summary label="Hotdogs" value={String(data.hotdogs)} />}
+        {weedTotal > 0 && <BreakdownTile title="Weed" items={weedItems} />}
+        {data.hotdogs > 0 && <HeadlineTile title="Hotdogs" value={String(data.hotdogs)} />}
       </div>
     </section>
   );

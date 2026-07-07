@@ -38,6 +38,7 @@ function seasonToTotals(s: SeasonStats): StatTotalsData {
   return {
     hazardByType: s.hazard_by_type,
     nicByType: s.nicotine_by_type,
+    weedByType: s.weed_by_type,
     ballsLost: s.balls_lost,
     penaltyStrokes: s.penalty_strokes,
     beers: s.beers,

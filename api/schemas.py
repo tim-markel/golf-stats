@@ -170,6 +170,7 @@ class SeasonStats(BaseModel):
     beers: int = 0
     beer_oz: float = 0
     weed: int = 0
+    weed_by_type: dict[str, int] = Field(default_factory=dict)
     hotdogs: int = 0
     approach_counts: dict[str, int] = Field(default_factory=dict)
     gir_count: int = 0

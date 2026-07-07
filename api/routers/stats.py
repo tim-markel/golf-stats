@@ -133,12 +133,13 @@ def golfer_season(golfer_id: int):
             "GROUP BY hn.type",
             (golfer_id,),
         ).fetchall()
-        weed = conn.execute(
-            "SELECT COUNT(*) AS n FROM hole_weed hw "
+        weed_rows = conn.execute(
+            "SELECT hw.type, COUNT(*) AS n FROM hole_weed hw "
             "JOIN hole_stats hs ON hs.id = hw.hole_stat_id "
-            "JOIN rounds r ON r.round_id = hs.round_id WHERE r.golfer_id = %s",
+            "JOIN rounds r ON r.round_id = hs.round_id WHERE r.golfer_id = %s "
+            "GROUP BY hw.type",
             (golfer_id,),
-        ).fetchone()
+        ).fetchall()
 
     hazard_by_type: dict = defaultdict(int)
     approach_counts: dict = defaultdict(int)
@@ -197,7 +198,8 @@ def golfer_season(golfer_id: int):
         "penalty_strokes": penalty_strokes,
         "beers": beers["n"],
         "beer_oz": float(beers["oz"]),
-        "weed": weed["n"],
+        "weed": sum(int(r["n"]) for r in weed_rows),
+        "weed_by_type": {r["type"]: int(r["n"]) for r in weed_rows},
         "hotdogs": hotdogs,
         "approach_counts": dict(approach_counts),
         "gir_count": gir_count,
