@@ -95,25 +95,6 @@ function StatCard({
   );
 }
 
-// X-axis tick: course name on top, date underneath.
-function CourseDateTick(props: any) {
-  const { x, y, payload, data } = props;
-  const item = data[payload.index];
-  if (!item) return null;
-  const name =
-    item.label.length > 12 ? item.label.slice(0, 11) + "…" : item.label;
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <text textAnchor="middle" y={12} fontSize={11} fill="#4b5563">
-        {name}
-      </text>
-      <text textAnchor="middle" y={26} fontSize={10} fill="#9ca3af">
-        {item.date}
-      </text>
-    </g>
-  );
-}
-
 // Hover popup shown above the bar.
 function ScoreTooltip(props: any) {
   const { active, payload } = props;
@@ -183,11 +164,14 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
     score: r.total_score,
   }));
 
-  // 10 bars fill the viewport; more rounds overflow into a horizontal scroll
-  const VISIBLE_BARS = 10;
+  // ~13 bars fill the viewport; more rounds overflow into a horizontal scroll
+  const VISIBLE_BARS = 13;
   const perBar = chartW ? chartW / VISIBLE_BARS : 0;
   const needScroll = chartData.length > VISIBLE_BARS && perBar > 0;
   const innerWidth = needScroll ? Math.round(perBar * chartData.length) : undefined;
+  // fixed y-domain 0–100 with 25-stroke ticks; shared so the pinned axis lines
+  // up with the scrolling bars
+  const Y_TICKS = [0, 25, 50, 75, 100];
 
   return (
     <div className="space-y-6">
@@ -226,44 +210,54 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
         {chartData.length === 0 ? (
           <p className="text-sm text-gray-500">No rounds logged yet.</p>
         ) : (
-          <div ref={scrollRef} className="overflow-x-auto">
-            <div style={{ width: needScroll ? innerWidth : "100%", height: 280 }}>
+          <div className="flex">
+            {/* pinned y-axis: stays put while the bars scroll */}
+            <div className="shrink-0" style={{ width: 34, height: 280 }}>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={chartData} margin={{ left: -16, right: 8, top: 8 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="label"
-                    interval={0}
-                    height={44}
-                    tickLine={false}
-                    tick={<CourseDateTick data={chartData} />}
+                <BarChart data={chartData} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
+                  <YAxis
+                    width={34}
+                    tick={{ fontSize: 12 }}
+                    domain={[0, 100]}
+                    ticks={Y_TICKS}
                   />
-                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip
-                    content={<ScoreTooltip />}
-                    cursor={{ fill: "rgba(21,102,63,0.06)" }}
-                  />
-                  <Bar
-                    dataKey="score"
-                    fill="#15663f"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={64}
-                    cursor="pointer"
-                    onClick={(d: any) => {
-                      const rid = d?.round_id ?? d?.payload?.round_id;
-                      if (rid) router.push(`/rounds/${rid}`);
-                    }}
-                  >
-                    <LabelList
-                      dataKey="score"
-                      position="top"
-                      fontSize={12}
-                      fontWeight={600}
-                      fill="#15663f"
-                    />
-                  </Bar>
+                  <Bar dataKey="score" fill="transparent" isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div ref={scrollRef} className="flex-1 overflow-x-auto">
+              <div style={{ width: needScroll ? innerWidth : "100%", height: 280 }}>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="label" hide />
+                    <YAxis hide domain={[0, 100]} ticks={Y_TICKS} />
+                    <Tooltip
+                      content={<ScoreTooltip />}
+                      cursor={{ fill: "rgba(21,102,63,0.06)" }}
+                    />
+                    <Bar
+                      dataKey="score"
+                      fill="#15663f"
+                      radius={[5, 5, 0, 0]}
+                      maxBarSize={42}
+                      cursor="pointer"
+                      onClick={(d: any) => {
+                        const rid = d?.round_id ?? d?.payload?.round_id;
+                        if (rid) router.push(`/rounds/${rid}`);
+                      }}
+                    >
+                      <LabelList
+                        dataKey="score"
+                        position="top"
+                        fontSize={12}
+                        fontWeight={600}
+                        fill="#15663f"
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         )}
@@ -273,9 +267,10 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
         <StatTotals title="Season totals" data={seasonToTotals(season)} />
       )}
 
+      <div className="grid gap-3 sm:grid-cols-2">
       <section className="card">
         <h2 className="border-b px-4 py-3 font-semibold">Rounds</h2>
-        <ul className="divide-y">
+        <ul className="max-h-80 divide-y overflow-y-auto">
           {data.rounds
             .slice()
             .reverse()
@@ -310,6 +305,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
           )}
         </ul>
       </section>
+      </div>
     </div>
   );
 }
