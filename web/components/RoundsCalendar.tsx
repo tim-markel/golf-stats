@@ -52,6 +52,11 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
+  // today's day number, only if the displayed month/year is the current one
+  const now = new Date();
+  const todayDay =
+    now.getFullYear() === ym.y && now.getMonth() === ym.m ? now.getDate() : -1;
+
   const arrow =
     "flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100";
 
@@ -93,8 +98,14 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
           if (day == null) return <div key={i} className="aspect-square bg-white" />;
           const key = `${ym.y}-${pad(ym.m + 1)}-${pad(day)}`;
           const dayRounds = byDate.get(key);
+          const isToday = day === todayDay;
           return (
-            <div key={i} className="flex aspect-square items-center justify-center bg-white">
+            <div
+              key={i}
+              className={`flex aspect-square items-center justify-center ${
+                isToday ? "bg-fairway-light" : "bg-white"
+              }`}
+            >
               {dayRounds ? (
                 <div className="group relative">
                   <Link
@@ -117,7 +128,13 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
                   </div>
                 </div>
               ) : (
-                <span className="text-[11px] text-gray-500">{day}</span>
+                <span
+                  className={`text-[11px] ${
+                    isToday ? "font-semibold text-fairway" : "text-gray-500"
+                  }`}
+                >
+                  {day}
+                </span>
               )}
             </div>
           );
