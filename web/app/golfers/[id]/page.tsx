@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { api, GolferStats, SeasonStats } from "@/lib/api";
 import StatTotals, { StatTotalsData } from "@/components/StatTotals";
+import RoundsCalendar from "@/components/RoundsCalendar";
 import { useGolfer } from "@/lib/golfer-context";
 
 // Distribution of 18-hole round totals, one bar per score, filling gaps so the
@@ -305,6 +306,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
           )}
         </ul>
       </section>
+      <RoundsCalendar rounds={data.rounds} />
       </div>
     </div>
   );
