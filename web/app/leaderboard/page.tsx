@@ -1,12 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, Leaderboard, ViceRow } from "@/lib/api";
 
 const fmt = (n: number | null, suffix = "") =>
   n == null ? "—" : `${n.toFixed(1)}${suffix}`;
 const MEDAL = ["🥇", "🥈", "🥉"];
+
+// Sortable numeric columns of the golfers table.
+type GolferSortKey =
+  | "handicap_index"
+  | "avg_score"
+  | "avg_putts"
+  | "gir_pct"
+  | "fairway_pct"
+  | "rounds_played";
+const GOLFER_COLUMNS: { key: GolferSortKey; label: string; suffix?: string }[] = [
+  { key: "handicap_index", label: "Hcp idx" },
+  { key: "avg_score", label: "Avg score" },
+  { key: "avg_putts", label: "Avg putts" },
+  { key: "gir_pct", label: "GIR", suffix: "%" },
+  { key: "fairway_pct", label: "FW", suffix: "%" },
+  { key: "rounds_played", label: "Rounds" },
+];
 
 function ViceCard({
   title,
@@ -53,6 +70,10 @@ export default function LeaderboardPage() {
   const [data, setData] = useState<Leaderboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [courseSel, setCourseSel] = useState<number | "top">("top");
+  // null sort = backend order (ranked by handicap index, lowest first)
+  const [sort, setSort] = useState<{ key: GolferSortKey; dir: "asc" | "desc" } | null>(
+    null
+  );
 
   useEffect(() => {
     api
@@ -60,6 +81,28 @@ export default function LeaderboardPage() {
       .then(setData)
       .catch(() => setError("Could not load the leaderboard."));
   }, []);
+
+  const sortedGolfers = useMemo(() => {
+    const rows = data?.golfers ?? [];
+    if (!sort) return rows;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = a[sort.key] as number | null;
+      const bv = b[sort.key] as number | null;
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1; // nulls always last
+      if (bv == null) return -1;
+      return (av - bv) * dir;
+    });
+  }, [data, sort]);
+
+  function toggleSort(key: GolferSortKey) {
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: prev.dir === "desc" ? "asc" : "desc" }
+        : { key, dir: "desc" }
+    );
+  }
 
   if (error) return <p className="text-red-700">{error}</p>;
   if (!data) return <p className="text-gray-500">Loading…</p>;
@@ -77,16 +120,28 @@ export default function LeaderboardPage() {
               <tr className="border-b text-left text-xs uppercase tracking-wide text-gray-400">
                 <th className="px-3 py-2">#</th>
                 <th className="px-3 py-2">Golfer</th>
-                <th className="px-3 py-2 text-right">Hcp idx</th>
-                <th className="px-3 py-2 text-right">Avg score</th>
-                <th className="px-3 py-2 text-right">Avg putts</th>
-                <th className="px-3 py-2 text-right">GIR</th>
-                <th className="px-3 py-2 text-right">FW</th>
-                <th className="px-3 py-2 text-right">Rounds</th>
+                {GOLFER_COLUMNS.map((c) => {
+                  const active = sort?.key === c.key;
+                  return (
+                    <th key={c.key} className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => toggleSort(c.key)}
+                        className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-fairway ${
+                          active ? "text-fairway" : ""
+                        }`}
+                      >
+                        {c.label}
+                        <span className="text-[9px]">
+                          {active ? (sort!.dir === "desc" ? "▼" : "▲") : "↕"}
+                        </span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y">
-              {data.golfers.map((g, i) => (
+              {sortedGolfers.map((g, i) => (
                 <tr key={g.golfer_id} className="hover:bg-fairway-light">
                   <td className="px-3 py-2 text-gray-500">{i + 1}</td>
                   <td className="px-3 py-2 font-medium">
@@ -104,7 +159,7 @@ export default function LeaderboardPage() {
                   <td className="px-3 py-2 text-right text-gray-500">{g.rounds_played}</td>
                 </tr>
               ))}
-              {data.golfers.length === 0 && (
+              {sortedGolfers.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-3 py-3 text-gray-500">
                     No golfers yet.
