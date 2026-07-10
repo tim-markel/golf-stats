@@ -139,10 +139,20 @@ export default function AboutPage() {
 
       <Section title="Handicap index">
         <p>
-          The handicap index is an estimate: each rated 18-hole round gets a score
-          differential of <code>(113 ÷ slope) × (score − course rating)</code>,
-          and the index is the average of your best recent differentials
-          (WHS-style). It needs at least 3 rated 18-hole rounds.{" "}
+          A WHS-style estimate. Each rated 18-hole round gets a score differential
+          of <code>(113 ÷ slope) × (adjusted gross − course rating)</code>, where{" "}
+          <em>adjusted gross</em> caps every hole at{" "}
+          <em>net double bogey</em> (par + 2 + the handicap strokes you receive
+          on that hole). The index averages the best 8 of your most recent 20
+          differentials — fewer when you have under 20, per the WHS table — then
+          truncates to a tenth. It needs at least 3 rated 18-hole rounds.
+        </p>
+        <p>
+          It intentionally leaves out a few things GHIN does: it doesn&apos;t
+          combine 9-hole rounds, apply the daily playing-conditions adjustment,
+          or use the soft/hard caps, and it relies on the tee ratings we scraped
+          rather than official ones. So it can differ from your GHIN index by a
+          few tenths.{" "}
           <span className="font-semibold">It is not an official USGA/GHIN handicap.</span>
         </p>
       </Section>

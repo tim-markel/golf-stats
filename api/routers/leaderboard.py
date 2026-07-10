@@ -7,7 +7,7 @@ from fastapi import APIRouter
 
 from ..db import pool
 from ..schemas import Leaderboard
-from .stats import compute_handicap_index
+from ..handicap import build_rounds, handicap_index
 
 router = APIRouter(tags=["leaderboard"])
 
@@ -17,7 +17,7 @@ def leaderboard():
     with pool.connection() as conn:
         rounds = conn.execute(
             """
-            SELECT r.golfer_id, g.name AS golfer_name, r.played_on,
+            SELECT r.golfer_id, r.round_id, g.name AS golfer_name, r.played_on,
                    r.course_id, c.name AS course_name, c.holes_count,
                    COALESCE(rs.holes_played, 0)  AS holes_played,
                    rs.total_score, rs.total_putts,
@@ -58,6 +58,15 @@ def leaderboard():
             "SELECT r.golfer_id, hs.hazards_hit, hs.balls_lost, hs.penalty_strokes, hs.putts "
             "FROM hole_stats hs JOIN rounds r ON r.round_id = hs.round_id"
         ).fetchall()
+        # hole-by-hole scores for the net-double-bogey handicap adjustment
+        hcp_hole_rows = conn.execute(
+            "SELECT hs.round_id, h.par, h.stroke_index, hs.score AS gross "
+            "FROM hole_stats hs JOIN holes h ON h.id = hs.hole_id"
+        ).fetchall()
+
+    holes_by_round: dict = defaultdict(list)
+    for hr in hcp_hole_rows:
+        holes_by_round[hr["round_id"]].append(hr)
 
     names = {r["golfer_id"]: r["golfer_name"] for r in rounds}
 
@@ -119,7 +128,11 @@ def leaderboard():
                 "golfer_id": gid,
                 "name": rs[0]["golfer_name"],
                 "rounds_played": len(rs),
-                "handicap_index": compute_handicap_index(full18),
+                "handicap_index": handicap_index(
+                    build_rounds(
+                        [r for r in rs if r["holes_played"] in (9, 18)], holes_by_round
+                    )
+                ),
                 "avg_score": (sum(r["total_score"] for r in scored) / len(scored)) if scored else None,
                 "avg_putts": (sum(r["total_putts"] for r in putted) / len(putted)) if putted else None,
                 "gir_pct": (100.0 * tg / th) if th else None,

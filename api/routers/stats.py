@@ -6,6 +6,7 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 
 from ..db import pool
+from ..handicap import build_rounds, handicap_index
 from ..schemas import GolferStats, SeasonStats
 
 router = APIRouter(prefix="/golfers", tags=["stats"])
@@ -46,6 +47,22 @@ def golfer_stats(golfer_id: int):
             (golfer_id,),
         ).fetchall()
 
+        # Hole-by-hole scores (for the net-double-bogey adjusted gross).
+        hole_rows = conn.execute(
+            """
+            SELECT hs.round_id, h.par, h.stroke_index, hs.score AS gross
+            FROM hole_stats hs
+            JOIN holes h ON h.id = hs.hole_id
+            JOIN rounds r ON r.round_id = hs.round_id
+            WHERE r.golfer_id = %s
+            """,
+            (golfer_id,),
+        ).fetchall()
+
+    holes_by_round: dict = defaultdict(list)
+    for hr in hole_rows:
+        holes_by_round[hr["round_id"]].append(hr)
+
     n = len(rounds)
     # Score/putts totals only compare across full 18-hole rounds, so exclude
     # 9-hole (or otherwise partial) rounds from those averages.
@@ -64,7 +81,8 @@ def golfer_stats(golfer_id: int):
     total_drv = sum(r["driving_holes"] for r in rounds)
     gir_pct = (100.0 * total_gir / total_holes) if total_holes else None
     fairway_pct = (100.0 * total_fw / total_drv) if total_drv else None
-    handicap_index = compute_handicap_index(full18)
+    hcp_rounds = [r for r in rounds if r["holes_played"] in (9, 18)]
+    hcp = handicap_index(build_rounds(hcp_rounds, holes_by_round))
 
     return {
         "golfer": golfer,
@@ -73,7 +91,7 @@ def golfer_stats(golfer_id: int):
         "avg_putts": avg_putts,
         "gir_pct": gir_pct,
         "fairway_pct": fairway_pct,
-        "handicap_index": handicap_index,
+        "handicap_index": hcp,
         "rounds": rounds,
     }
 
@@ -227,34 +245,3 @@ def golfer_season(golfer_id: int):
             {"score": r["score"], "putts": r["putts"]} for r in pv18
         ],
     }
-
-
-# WHS table: differentials available -> (count averaged, adjustment).
-def _whs_params(n: int):
-    if n >= 20: return 8, 0.0
-    if n == 19: return 7, 0.0
-    if n >= 17: return 6, 0.0
-    if n >= 15: return 5, 0.0
-    if n >= 12: return 4, 0.0
-    if n >= 9: return 3, 0.0
-    if n >= 7: return 2, 0.0
-    if n == 6: return 2, -1.0
-    if n == 5: return 1, 0.0
-    if n == 4: return 1, -1.0
-    return 1, -2.0  # n == 3
-
-
-def compute_handicap_index(full18_rounds):
-    """Score differential = (113 / slope) * (score - rating); index = best of
-    the most recent 20 (per the WHS table). Needs >= 3 rated 18-hole rounds."""
-    diffs = []
-    for r in full18_rounds:  # already chronological
-        if r["total_score"] is None or not r["slope_rating"] or r["course_rating"] is None:
-            continue
-        diffs.append((113.0 / r["slope_rating"]) * (r["total_score"] - float(r["course_rating"])))
-    pool = diffs[-20:]  # most recent 20 eligible rounds
-    if len(pool) < 3:
-        return None
-    count, adj = _whs_params(len(pool))
-    lowest = sorted(pool)[:count]
-    return round(sum(lowest) / len(lowest) + adj, 1)

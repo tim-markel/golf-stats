@@ -196,7 +196,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
         <StatCard
           label="Hcp index"
           value={fmt(data.handicap_index)}
-          info="Estimated handicap index — the average of your best recent score differentials. Each round's differential = (113 ÷ slope) × (score − course rating), using your tee's slope/rating. Uses the best of your last 20 rated 18-hole rounds (WHS-style). Not an official USGA/GHIN handicap."
+          info="Unofficial WHS-style estimate. Each 18-hole round's score differential = (113 ÷ slope) × (adjusted gross − course rating), where adjusted gross caps every hole at net double bogey (par + 2 + strokes received). The index averages the best 8 of your last 20 differentials (fewer when you have under 20), truncated to a tenth. It does not combine 9-hole rounds or apply GHIN's playing-conditions adjustment, caps, or official ratings, so it can differ from GHIN by a few tenths. Not an official USGA/GHIN handicap."
         />
         <StatCard label="Avg score" value={fmt(data.avg_score)} />
         <StatCard label="Rounds" value={String(data.rounds_played)} />
