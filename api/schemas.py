@@ -44,8 +44,13 @@ class Course(BaseModel):
     name: str
     city: Optional[str] = None
     country: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     holes_count: int
     par: Optional[int] = None
+    website: Optional[str] = None
+    booking_url: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class Tee(BaseModel):

@@ -14,7 +14,8 @@ def list_courses():
     with pool.connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, name, city, country, holes_count, par
+            SELECT id, name, city, country, latitude, longitude,
+                   holes_count, par, website, booking_url, phone
             FROM courses ORDER BY name
             """
         ).fetchall()
@@ -26,7 +27,8 @@ def get_course(course_id: int):
     with pool.connection() as conn:
         course = conn.execute(
             """
-            SELECT id, name, city, country, holes_count, par
+            SELECT id, name, city, country, latitude, longitude,
+                   holes_count, par, website, booking_url, phone
             FROM courses WHERE id = %s
             """,
             (course_id,),

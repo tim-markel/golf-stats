@@ -52,7 +52,17 @@ class CourseData(BaseModel):
     par: Optional[int] = Field(default=None, description="Total par for the course.")
     architect: Optional[str] = None
     year_built: Optional[int] = None
-    website: Optional[str] = None
+    website: Optional[str] = Field(
+        default=None, description="The course's official website URL."
+    )
     phone: Optional[str] = None
+    booking_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "URL to book a tee time for this course — its own online booking / "
+            "tee-time page, or a booking-platform link (GolfNow, Chronogolf, "
+            "TeeSnap, foreUP, etc.). Prefer the course's own page. Null if none."
+        ),
+    )
     tees: list[TeeData] = Field(default_factory=list)
     holes: list[HoleData] = Field(default_factory=list)

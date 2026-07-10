@@ -24,6 +24,8 @@ CREATE TABLE courses (
     -- location
     city            TEXT,
     country         TEXT,
+    latitude        DOUBLE PRECISION,                 -- for the explore map
+    longitude       DOUBLE PRECISION,
     -- summary attributes
     holes_count     SMALLINT    NOT NULL DEFAULT 18, -- 9, 18, 27, ...
     par             SMALLINT,                         -- total par for the course
@@ -31,6 +33,7 @@ CREATE TABLE courses (
     year_built      SMALLINT,
     website         TEXT,
     phone           TEXT,
+    booking_url     TEXT,                             -- tee-time booking link
     -- provenance (populated by the scraping agent)
     data_source     TEXT,                            -- which site/API it came from
     source_url      TEXT,

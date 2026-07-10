@@ -25,6 +25,9 @@ export default function RootLayout({
                 <span className="text-xl">⛳</span> Bogey Book
               </Link>
               <div className="flex items-center gap-2 text-sm">
+                <Link href="/explore" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
+                  Explore
+                </Link>
                 <Link href="/leaderboard" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
                   Leaderboard
                 </Link>

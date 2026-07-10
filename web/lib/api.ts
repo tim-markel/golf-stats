@@ -16,8 +16,13 @@ export interface Course {
   name: string;
   city: string | null;
   country: string | null;
+  latitude: number | null;
+  longitude: number | null;
   holes_count: number;
   par: number | null;
+  website: string | null;
+  booking_url: string | null;
+  phone: string | null;
 }
 
 export interface Hole {

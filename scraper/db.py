@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import psycopg
 
+from .geocode import geocode_course
 from .models import CourseData
 
 
@@ -11,25 +12,31 @@ def save_course(database_url: str, course: CourseData, source_urls: list[str]) -
     data_source = "gemini+tavily"
     source_url = source_urls[0] if source_urls else None
 
+    # Best-effort geocode for the explore map (never blocks the save).
+    coords = geocode_course(course.name, course.city, course.country)
+    latitude, longitude = coords if coords else (None, None)
+
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO courses (
-                    name, city, country,
-                    holes_count, par, architect, year_built, website, phone,
+                    name, city, country, latitude, longitude,
+                    holes_count, par, architect, year_built,
+                    website, phone, booking_url,
                     data_source, source_url, scraped_at
                 ) VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s,
                     %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
                     %s, %s, now()
                 )
                 RETURNING id
                 """,
                 (
-                    course.name, course.city, course.country,
-                    course.holes_count, course.par, course.architect,
-                    course.year_built, course.website, course.phone,
+                    course.name, course.city, course.country, latitude, longitude,
+                    course.holes_count, course.par, course.architect, course.year_built,
+                    course.website, course.phone, course.booking_url,
                     data_source, source_url,
                 ),
             )

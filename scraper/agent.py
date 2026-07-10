@@ -20,6 +20,9 @@ Rules:
   when available.
 - Stroke index is the difficulty rank 1-18 (1 = hardest), distinct from par.
 - Prefer the course's official scorecard when sources disagree.
+- Capture the official website URL and, if present, a tee-time booking URL
+  (the course's online booking page or a GolfNow/Chronogolf/TeeSnap/foreUP
+  link). Only use links actually found in the sources.
 """
 
 
