@@ -165,6 +165,11 @@ class ParAverage(BaseModel):
     avg: float
 
 
+class PuttScorePoint(BaseModel):
+    score: int
+    putts: int
+
+
 class SeasonStats(BaseModel):
     rounds_played: int = 0
     holes_played: int = 0
@@ -191,6 +196,7 @@ class SeasonStats(BaseModel):
     putt_holes: int = 0
     putt_avg_per_round: Optional[float] = None  # over 18-hole rounds only
     round_scores: list[int] = Field(default_factory=list)  # 18-hole totals
+    putts_vs_score: list[PuttScorePoint] = Field(default_factory=list)
 
 
 # --- leaderboard -----------------------------------------------------------

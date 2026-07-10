@@ -10,9 +10,12 @@ import {
   CartesianGrid,
   LabelList,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from "recharts";
 import { hazardLabel, nicotineLabel, weedLabel } from "@/lib/api";
 
@@ -44,6 +47,8 @@ export interface StatTotalsData {
   // when set (season totals), adds a round-score distribution chart
   roundScoreBins?: { name: string; value: number }[];
   roundScoreStats?: { low: number; high: number; avg: number };
+  // when set (season totals), adds a putts-vs-score scatter plot
+  puttsVsScore?: { putts: number; score: number }[];
 }
 
 // Tile with the headline on top and a single big value below (e.g. Beers).
@@ -248,6 +253,56 @@ function DispersionTarget({
   );
 }
 
+// Putts (x) vs total score (y) for 18-hole rounds — one green dot per round.
+function ScatterCard({
+  title,
+  data,
+}: {
+  title: string;
+  data: { putts: number; score: number }[];
+}) {
+  if (data.length === 0) return null;
+  const Tip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0].payload;
+    return (
+      <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm shadow-card">
+        <div className="font-bold text-fairway">Score {p.score}</div>
+        <div className="text-xs text-gray-500">{p.putts} putts</div>
+      </div>
+    );
+  };
+  return (
+    <div className="card p-4">
+      <h3 className="mb-1 text-sm font-semibold">{title}</h3>
+      <ResponsiveContainer width="100%" height={200}>
+        <ScatterChart margin={{ left: -18, right: 8, top: 8, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            type="number"
+            dataKey="putts"
+            name="Putts"
+            domain={["auto", "auto"]}
+            allowDecimals={false}
+            tick={{ fontSize: 11 }}
+          />
+          <YAxis
+            type="number"
+            dataKey="score"
+            name="Score"
+            domain={["auto", "auto"]}
+            allowDecimals={false}
+            tick={{ fontSize: 12 }}
+          />
+          <ZAxis range={[55, 55]} />
+          <Tooltip content={<Tip />} cursor={{ strokeDasharray: "3 3" }} />
+          <Scatter data={data} fill="#15663f" fillOpacity={0.75} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export default function StatTotals({
   title,
   data,
@@ -383,6 +438,9 @@ export default function StatTotals({
             ) : undefined
           }
         />
+        {data.puttsVsScore && data.puttsVsScore.length > 0 && (
+          <ScatterCard title="Putts vs Score" data={data.puttsVsScore} />
+        )}
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3">

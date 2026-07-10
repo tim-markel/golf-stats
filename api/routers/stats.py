@@ -120,6 +120,14 @@ def golfer_season(golfer_id: int):
             "AND rs.total_score IS NOT NULL ORDER BY rs.total_score",
             (golfer_id,),
         ).fetchall()
+        # paired putts + score per 18-hole round for the scatter plot
+        pv18 = conn.execute(
+            "SELECT rs.total_score AS score, rs.total_putts AS putts "
+            "FROM round_stats rs JOIN rounds r ON r.round_id = rs.round_id "
+            "WHERE r.golfer_id = %s AND rs.holes_played = 18 "
+            "AND rs.total_score IS NOT NULL AND rs.total_putts IS NOT NULL",
+            (golfer_id,),
+        ).fetchall()
         beers = conn.execute(
             "SELECT COUNT(*) AS n, COALESCE(SUM(hb.size_oz), 0) AS oz "
             "FROM hole_beer hb JOIN hole_stats hs ON hs.id = hb.hole_stat_id "
@@ -215,6 +223,9 @@ def golfer_season(golfer_id: int):
         "putt_holes": putt_holes,
         "putt_avg_per_round": (putt18["putts"] / putt18["n"]) if putt18["n"] else None,
         "round_scores": [r["total_score"] for r in score18],
+        "putts_vs_score": [
+            {"score": r["score"], "putts": r["putts"]} for r in pv18
+        ],
     }
 
 

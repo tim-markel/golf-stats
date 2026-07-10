@@ -68,6 +68,7 @@ function seasonToTotals(s: SeasonStats): StatTotalsData {
           avg: s.round_scores.reduce((a, b) => a + b, 0) / s.round_scores.length,
         }
       : undefined,
+    puttsVsScore: s.putts_vs_score.map((p) => ({ putts: p.putts, score: p.score })),
   };
 }
 
