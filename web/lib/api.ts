@@ -336,6 +336,36 @@ export interface RoundDetail {
   totals: RoundTotals;
 }
 
+// --- practice ---------------------------------------------------------------
+export type PracticeRating = "good" | "medium" | "bad";
+export interface PracticeActivity {
+  balls: number | null; // range only
+  time: number | null; // minutes
+  rating: PracticeRating | null;
+}
+
+export interface PracticeSessionIn {
+  golfer_id: number;
+  practiced_on: string;
+  range: PracticeActivity;
+  putting: PracticeActivity;
+  chipping: PracticeActivity;
+  notes: string | null;
+}
+
+export interface PracticeSession {
+  id: number;
+  golfer_id: number;
+  practiced_on: string;
+  range: PracticeActivity;
+  putting: PracticeActivity;
+  chipping: PracticeActivity;
+  notes: string | null;
+}
+
+export const PRACTICE_ACTIVITIES = ["range", "putting", "chipping"] as const;
+export type PracticeActivityKey = (typeof PRACTICE_ACTIVITIES)[number];
+
 // --- fetch helpers ---------------------------------------------------------
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
@@ -361,6 +391,11 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status}`);
   return res.json();
+}
+
+async function del(path: string): Promise<void> {
+  const res = await fetch(`${API_URL}${path}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
 }
 
 export const api = {
@@ -390,4 +425,9 @@ export const api = {
     patch<RoundDetail>(`/rounds/${id}/hole-stats`, { holes }),
   updateHoleStat: (roundId: number, holeId: number, b: HoleStatEdit) =>
     patch<RoundDetail>(`/rounds/${roundId}/holes/${holeId}`, b),
+  listPractice: (golferId: number) =>
+    get<PracticeSession[]>(`/practice?golfer_id=${golferId}`),
+  createPractice: (b: PracticeSessionIn) =>
+    post<PracticeSession>("/practice", b),
+  deletePractice: (id: number) => del(`/practice/${id}`),
 };

@@ -215,8 +215,30 @@ CREATE TABLE hole_beer (
 );
 
 -- ---------------------------------------------------------------------------
+-- practice_sessions  (range / putting / chipping practice, for the dashboard)
+-- ---------------------------------------------------------------------------
+-- Each session is logged for a golfer on a date and can include any of three
+-- activities. Range tracks a ball count; every activity tracks time (minutes)
+-- and an overall rating (good / medium / bad).
+CREATE TABLE practice_sessions (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    golfer_id       BIGINT      NOT NULL REFERENCES golfers (golfer_id) ON DELETE CASCADE,
+    practiced_on    DATE        NOT NULL,
+    range_balls     INT,
+    range_time      INT,        -- minutes
+    range_rating    TEXT        CHECK (range_rating    IS NULL OR range_rating    IN ('good','medium','bad')),
+    putting_time    INT,
+    putting_rating  TEXT        CHECK (putting_rating  IS NULL OR putting_rating  IN ('good','medium','bad')),
+    chipping_time   INT,
+    chipping_rating TEXT        CHECK (chipping_rating IS NULL OR chipping_rating IN ('good','medium','bad')),
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
 -- indexes
 -- ---------------------------------------------------------------------------
+CREATE INDEX idx_practice_golfer  ON practice_sessions (golfer_id, practiced_on);
 CREATE INDEX idx_tees_course      ON tees      (course_id);
 CREATE INDEX idx_holes_course     ON holes     (course_id);
 CREATE INDEX idx_hole_tees_hole   ON hole_tees (hole_id);

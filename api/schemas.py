@@ -362,6 +362,35 @@ class RoundTotals(BaseModel):
     hotdogs: int = 0
 
 
+# --- practice ---------------------------------------------------------------
+class PracticeActivity(BaseModel):
+    """One practice activity: time (minutes) and an overall rating. Only the
+    range uses `balls`; putting/chipping leave it null."""
+
+    balls: Optional[int] = None
+    time: Optional[int] = None
+    rating: Optional[Literal["good", "medium", "bad"]] = None
+
+
+class PracticeSessionIn(BaseModel):
+    golfer_id: int
+    practiced_on: date
+    range: PracticeActivity = Field(default_factory=PracticeActivity)
+    putting: PracticeActivity = Field(default_factory=PracticeActivity)
+    chipping: PracticeActivity = Field(default_factory=PracticeActivity)
+    notes: Optional[str] = None
+
+
+class PracticeSession(BaseModel):
+    id: int
+    golfer_id: int
+    practiced_on: date
+    range: PracticeActivity
+    putting: PracticeActivity
+    chipping: PracticeActivity
+    notes: Optional[str] = None
+
+
 class RoundDetail(BaseModel):
     round_id: int
     played_on: date

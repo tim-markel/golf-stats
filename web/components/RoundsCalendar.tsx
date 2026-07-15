@@ -15,7 +15,13 @@ const MONTHS = [
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
+export default function RoundsCalendar({
+  rounds,
+  practice = [],
+}: {
+  rounds: RoundSummary[];
+  practice?: { practiced_on: string }[];
+}) {
   // rounds keyed by their played_on date string (YYYY-MM-DD)
   const byDate = useMemo(() => {
     const m = new Map<string, RoundSummary[]>();
@@ -26,6 +32,12 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
     }
     return m;
   }, [rounds]);
+
+  // dates with a practice session (lighter-green marker)
+  const practiceDates = useMemo(
+    () => new Set(practice.map((p) => p.practiced_on)),
+    [practice]
+  );
 
   // start on the most recent round's month (rounds are chronological)
   const [ym, setYm] = useState(() => {
@@ -98,6 +110,7 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
           if (day == null) return <div key={i} className="aspect-square bg-white" />;
           const key = `${ym.y}-${pad(ym.m + 1)}-${pad(day)}`;
           const dayRounds = byDate.get(key);
+          const isPractice = !dayRounds && practiceDates.has(key);
           const isToday = day === todayDay;
           return (
             <div
@@ -127,6 +140,20 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
                     <div className="mt-1 text-[10px] text-gray-400">Click to open</div>
                   </div>
                 </div>
+              ) : isPractice ? (
+                <div className="group relative">
+                  <Link
+                    href="/practice"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white hover:brightness-110"
+                    style={{ background: "#69b58c" }}
+                  >
+                    {day}
+                  </Link>
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-32 -translate-x-1/2 rounded-lg border border-black/10 bg-white p-2 text-center shadow-card group-hover:block">
+                    <div className="text-xs font-semibold text-ink">Practice</div>
+                    <div className="mt-0.5 text-[10px] text-gray-400">Click to open</div>
+                  </div>
+                </div>
               ) : (
                 <span
                   className={`text-[11px] ${
@@ -139,6 +166,14 @@ export default function RoundsCalendar({ rounds }: { rounds: RoundSummary[] }) {
             </div>
           );
         })}
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="h-3 w-3 rounded-full bg-fairway" /> Round
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="h-3 w-3 rounded-full" style={{ background: "#69b58c" }} /> Practice
+        </span>
       </div>
       </div>
     </section>

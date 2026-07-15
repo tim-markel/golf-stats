@@ -11,7 +11,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import pool
-from .routers import beers, courses, golfers, leaderboard, rounds, stats
+from .routers import (
+    beers,
+    courses,
+    golfers,
+    leaderboard,
+    practice,
+    rounds,
+    stats,
+)
 
 
 @asynccontextmanager
@@ -39,6 +47,7 @@ app.include_router(beers.router)
 app.include_router(rounds.router)
 app.include_router(stats.router)
 app.include_router(leaderboard.router)
+app.include_router(practice.router)
 
 
 @app.get("/health", tags=["meta"])

@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { api, GolferStats, SeasonStats } from "@/lib/api";
+import { api, GolferStats, PracticeSession, SeasonStats } from "@/lib/api";
 import StatTotals, { StatTotalsData } from "@/components/StatTotals";
 import RoundsCalendar from "@/components/RoundsCalendar";
 import { useGolfer } from "@/lib/golfer-context";
@@ -122,6 +122,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
   const { setActive } = useGolfer();
   const [data, setData] = useState<GolferStats | null>(null);
   const [season, setSeason] = useState<SeasonStats | null>(null);
+  const [practice, setPractice] = useState<PracticeSession[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Scores-by-round chart: show ~10 bars, scroll horizontally for the rest.
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -138,6 +139,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
       .then(setData)
       .catch(() => setError("Could not load stats."));
     api.golferSeason(id).then(setSeason).catch(() => {});
+    api.listPractice(id).then(setPractice).catch(() => {});
   }, [id]);
 
   // measure the visible chart width (10 bars fit across it)
@@ -305,7 +307,7 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
           )}
         </ul>
       </section>
-      <RoundsCalendar rounds={data.rounds} />
+      <RoundsCalendar rounds={data.rounds} practice={practice} />
       </div>
     </div>
   );
