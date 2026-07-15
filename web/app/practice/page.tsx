@@ -28,9 +28,9 @@ function RatingBar({ good, medium, bad }: { good: number; medium: number; bad: n
     n > 0 ? <div className={cls} style={{ width: `${(n / total) * 100}%` }} /> : null;
   return (
     <div className="flex h-2 overflow-hidden rounded-full bg-gray-100">
-      {seg(good, "bg-fairway")}
-      {seg(medium, "bg-yellow-400")}
-      {seg(bad, "bg-red-400")}
+      {seg(good, "bg-green-600")}
+      {seg(medium, "bg-yellow-500")}
+      {seg(bad, "bg-red-700")}
     </div>
   );
 }
