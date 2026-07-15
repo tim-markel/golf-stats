@@ -29,14 +29,22 @@ aims to go much further:
 
 1. **Course data ingestion** — A scraping agent ([`scraper/`](scraper)) takes a
    course name, searches the web, and extracts course details (tees, hole
-   yardages, par, stroke index, slope, and course rating) into the database.
+   yardages, par, stroke index, slope, and course rating) into the database. It
+   also geocodes the course (for the map) and grabs a tee-time booking link when
+   one is found.
 2. **Round entry** — You log rounds hole-by-hole in the web app: score, putts,
-   driving/approach accuracy, GIR, penalties, hazards, balls lost, and on-course
-   beer/nicotine/weed consumption.
+   driving/approach accuracy, GIR, up & down, penalties, hazards, balls lost, and
+   on-course beer/nicotine/weed/hotdog consumption. Rounds, their metadata, and
+   any hole's stats can all be edited after the fact.
 3. **Stats** — A `round_stats` view rolls the hole-level data up to round
-   totals; the API aggregates further (scoring average, GIR %, fairway %, etc.).
-4. **Dashboard** — The Next.js app ([`web/`](web)) surfaces per-golfer stats and
-   trends, and provides the round-entry UI.
+   totals; the API aggregates further into per-round scorecards, per-golfer
+   **season totals** (distributions, dispersion targets, GIR/fairway/putts vs
+   score scatters), a WHS-style **handicap index** (net-double-bogey adjusted
+   gross, 9-hole rounds folded in), and a cross-golfer **leaderboard** (including
+   the tongue-in-cheek Total Ass Index).
+4. **Dashboard** — The Next.js app ([`web/`](web)) surfaces all of that plus a
+   **calendar** of rounds and practice, a **practice** tracker (range / putting /
+   chipping), and an **Explore** map of nearby courses with tee-time links.
 
 ## Architecture
 
@@ -54,9 +62,10 @@ scraper/ (Python + Gemini + Tavily)
   courses, tees, holes, golfers, rounds, and hole-by-hole stats (see ERD below).
 - **API** ([`api/`](api)) — FastAPI service exposing golfers, courses, rounds,
   the beer catalog, and aggregated stats as JSON.
-- **Web app** ([`web/`](web)) — Next.js + React + Tailwind + Recharts PWA: a
-  GHIN/18Birdies-style entry flow plus per-golfer visualization, on phone and
-  desktop from one codebase.
+- **Web app** ([`web/`](web)) — Next.js + React + Tailwind + Recharts (+ Leaflet
+  for the map) PWA: a GHIN/18Birdies-style entry flow, per-golfer visualization
+  and season totals, a rounds/practice calendar, a leaderboard, a practice
+  dashboard, and an Explore map — on phone and desktop from one codebase.
 
 ## Status
 
@@ -77,6 +86,7 @@ erDiagram
     holes   ||--o{ hole_tees : "yardage per tee"
     tees    ||--o{ hole_tees : "yardage per hole"
     golfers ||--o{ rounds : "plays"
+    golfers ||--o{ practice_sessions : "logs"
     courses ||--o{ rounds : "played at"
     tees    |o--o{ rounds : "played from"
     rounds  ||--o{ hole_stats : "scored on"
@@ -91,8 +101,12 @@ erDiagram
         text name
         text city
         text country
+        double latitude "for the explore map"
+        double longitude
         smallint holes_count
         smallint par
+        text website
+        text booking_url "tee-time link"
         text data_source "scraper provenance"
     }
     tees {
@@ -141,9 +155,11 @@ erDiagram
         boolean gir
         text approach_accuracy
         boolean up_and_down
-        text penalty_stroke "off_tee/approach"
-        text_array hazards_hit "water/bunker/natural_area"
+        text_array penalty_locations "off_tee/approach"
+        smallint penalty_strokes
+        text_array hazards_hit "water/bunker/natural_area/ob"
         smallint balls_lost
+        smallint hotdogs
     }
     hole_nicotine {
         bigint id PK
@@ -168,6 +184,18 @@ erDiagram
         bigint hole_stat_id FK
         bigint beer_id FK
         numeric size_oz
+    }
+    practice_sessions {
+        bigint id PK
+        bigint golfer_id FK
+        date practiced_on
+        int range_balls
+        int range_time "minutes"
+        text range_rating "good/medium/bad"
+        int putting_time
+        text putting_rating
+        int chipping_time
+        text chipping_rating
     }
 ```
 
@@ -213,11 +241,16 @@ Quick CLI access: `psql golf_stats` (then `\dt` to list tables).
 
 The `scraper/` package is the course-data ingestion tool. You give it a course
 name and an LLM agent searches the web, reads the resulting pages, and extracts
-a structured record (course details, tee sets, and hole-by-hole par / stroke
-index / yardages) that it writes into the database.
+a structured record (course details, tee sets, hole-by-hole par / stroke index /
+yardages, and a tee-time booking link) that it writes into the database. On save
+it also geocodes the course via OpenStreetMap (no key required) so it can appear
+on the Explore map.
 
 **Pipeline:** `course name → Tavily web search → fetch & clean pages → Gemini
-structured extraction → insert into Postgres`
+structured extraction → geocode → insert into Postgres`
+
+To backfill coordinates for courses added before geocoding existed, run
+`python -m scraper.geocode_backfill`.
 
 ### Setup
 
@@ -257,9 +290,10 @@ Postgres database:
 - **`api/`** — a FastAPI service exposing golfers, courses, rounds, and
   aggregated stats as JSON.
 - **`web/`** — a Next.js (React + Tailwind) app with a GHIN/18Birdies-style
-  hole-by-hole round-entry flow and a per-golfer visualization page (scoring
-  trend, putts, GIR %, fairway %, round history). Installable as a PWA, so it
-  works on both phone and desktop from one codebase.
+  hole-by-hole round-entry flow, a per-golfer page (scoring trend, season totals,
+  rounds/practice calendar, round history), an editable scorecard, a leaderboard,
+  a practice dashboard, and an Explore map. Installable as a PWA, so it works on
+  both phone and desktop from one codebase.
 
 ```
 Postgres → FastAPI (api/) → Next.js (web/)
@@ -290,9 +324,13 @@ against), then open the app, create a golfer, and start a round.
 ## Roadmap
 
 - [x] Define data model for courses and holes
-- [x] Build the course-scraping agent
+- [x] Build the course-scraping agent (with geocoding + booking links)
 - [x] Build the API (FastAPI) over the data model
 - [x] Build the dashboard / app front end (Next.js: entry UI + golfer stats)
+- [x] WHS-style handicap index (net double bogey, 9-hole rounds folded in)
+- [x] Season totals, leaderboard, and rounds/practice calendar
+- [x] Practice dashboard (range / putting / chipping)
+- [x] Explore map of nearby courses with tee-time links
 - [ ] Integrate external golf data APIs
 - [ ] Implement the stats engine (advanced + user-defined custom metrics)
 - [ ] Add support for user-defined custom statistics

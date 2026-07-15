@@ -45,6 +45,16 @@ export default function AboutPage() {
           ratings and yardages) are pulled from the web so the numbers are
           accurate.
         </p>
+        <p>
+          Beyond a single round it gives you <span className="font-semibold">season
+          totals</span> and dispersion charts on your golfer page, a{" "}
+          <span className="font-semibold">practice</span> tracker for range,
+          putting, and chipping, a <span className="font-semibold">calendar</span>{" "}
+          of everything you&apos;ve played and practiced, an{" "}
+          <span className="font-semibold">Explore</span> map of courses near you
+          with tee-time links, and a <span className="font-semibold">leaderboard</span>{" "}
+          ranking every golfer.
+        </p>
       </Section>
 
       <Section title="Getting started">
@@ -110,31 +120,89 @@ export default function AboutPage() {
       <Section title="The scorecard">
         <p>Tap any round to open its scorecard:</p>
         <ul className="list-disc space-y-1.5 pl-5">
+          <Feature name="Header">
+            the tee played with its rating / slope, and — for a full rated
+            18-hole round — that round&apos;s WHS score differential next to the total.
+          </Feature>
           <Feature name="Paper scorecard">
             Yards / Par / Hdcp / Score per hole with classic markers (circle =
-            under par, square = over). Use <span className="font-semibold">Edit scorecard</span>{" "}
-            to fix scores.
+            under par, square = over), with Out / In nines. Use{" "}
+            <span className="font-semibold">Edit stats</span> to fix scores and putts.
+          </Feature>
+          <Feature name="Edit round">
+            change the date, tee set, or time of day after the fact.
           </Feature>
           <Feature name="Hole-by-hole cards">
             per hole: fairway, GIR, approach (✓ / arrows), putts, and any hazards,
-            lost balls, beers, nicotine, or weed recorded.
+            lost balls, beers, nicotine, or weed recorded. Tap ✏️ on a hole to
+            edit its full stats — including consumption — not just the score.
           </Feature>
           <Feature name="Round totals">
             Approach &amp; Fairways shown as spatial &quot;target&quot; heatmaps
-            (with GIR and FW counts), score &amp; putt distributions with per-par
-            and putting averages, plus consumption totals.
+            (with GIR and FW counts), hole-score &amp; putt distributions with
+            per-par and putting averages, plus tiles for penalties, up &amp; downs,
+            and consumption.
           </Feature>
         </ul>
       </Section>
 
       <Section title="Your golfer page">
         <ul className="list-disc space-y-1.5 pl-5">
-          <Feature name="Stat tiles">handicap index, average score, average putts, GIR %, fairway %.</Feature>
-          <Feature name="Scores chart">
-            a bar per round — hover for the score, click a bar to open that round&apos;s scorecard.
+          <Feature name="Stat tiles">handicap index, average score, and rounds played.</Feature>
+          <Feature name="Scores by round">
+            a bar per round with the score on top — it starts on your most recent
+            rounds and scrolls left for older ones; click a bar to open that
+            round&apos;s scorecard.
           </Feature>
-          <Feature name="Rounds list">every round with its total; tap to view.</Feature>
+          <Feature name="Calendar">
+            a month view (toggle month / year) with a green dot on days you played
+            a round and a lighter-green dot on days you practiced — hover for
+            details, click to open.
+          </Feature>
+          <Feature name="Rounds list">every round with its score; tap to view.</Feature>
         </ul>
+        <p className="pt-1 font-semibold text-ink">Season totals</p>
+        <p>
+          Everything you&apos;ve done this season, rolled up: score and hole-score
+          distributions; Approach and Fairways &quot;target&quot; heatmaps; scatter
+          plots of GIR, fairways, and putts against your score (with your
+          par-or-better conversion after hitting the green or fairway); a putt
+          distribution; and breakdown tiles for hazards, penalties, up &amp; downs,
+          and consumption.
+        </p>
+      </Section>
+
+      <Section title="Leaderboard">
+        <p>Ranks everyone who plays:</p>
+        <ul className="list-disc space-y-1.5 pl-5">
+          <Feature name="Golfers">
+            a sortable table — click any stat header (handicap, avg score, avg
+            putts, GIR, fairways, rounds) to sort.
+          </Feature>
+          <Feature name="Top scores by course">the best rounds posted at each course.</Feature>
+          <Feature name="Consumption">leaders for beers, hotdogs, nicotine, and weed.</Feature>
+          <Feature name="🍑 Total Ass Index">a ranking by the messiness metric described below.</Feature>
+        </ul>
+      </Section>
+
+      <Section title="Explore">
+        <p>
+          A map of the courses we have data for. It centers on you (with your
+          permission) and lists courses nearest first. Tap a pin or a course to
+          see its tees and ratings, a link to the course website, and a{" "}
+          <span className="font-semibold">Book tee time</span> link when we have one.
+        </p>
+      </Section>
+
+      <Section title="Practice">
+        <p>
+          A dashboard for range, putting, and chipping. Log a session with the
+          date, how many range balls you hit, the time you spent on each area, and
+          a quick <span className="font-semibold">Good / Medium / Bad</span> rating.
+          You get summary tiles (sessions, range balls, total time) and per-area
+          rating breakdowns, plus a history you can tap to open and edit any
+          session. Practice days show up on your calendar too.
+        </p>
       </Section>
 
       <Section title="Handicap index">
@@ -148,11 +216,12 @@ export default function AboutPage() {
           truncates to a tenth. It needs at least 3 rated 18-hole rounds.
         </p>
         <p>
-          It intentionally leaves out a few things GHIN does: it doesn&apos;t
-          combine 9-hole rounds, apply the daily playing-conditions adjustment,
-          or use the soft/hard caps, and it relies on the tee ratings we scraped
-          rather than official ones. So it can differ from your GHIN index by a
-          few tenths.{" "}
+          9-hole rounds are folded in with an approximation — a 9-hole
+          differential (against half the tee&apos;s rating) plus an estimated
+          expected differential for the nine you didn&apos;t play. It still leaves
+          out a few things GHIN does: the daily playing-conditions adjustment and
+          the soft / hard caps, and it uses the tee ratings we scraped rather than
+          official ones. So it can differ from your GHIN index by a few tenths.{" "}
           <span className="font-semibold">It is not an official USGA/GHIN handicap.</span>
         </p>
       </Section>
@@ -238,9 +307,15 @@ export default function AboutPage() {
       <Section title="Good to know">
         <ul className="list-disc space-y-1.5 pl-5">
           <li>It&apos;s a personal tracker — your rounds and golfers live in your own database.</li>
-          <li>9-hole rounds are excluded from the 18-hole scoring/putting averages and the handicap index.</li>
-          <li>New courses are added with the scraper; each comes with its tees, ratings, slopes, and yardages.</li>
+          <li>9-hole rounds are excluded from the 18-hole scoring and putting averages, but are folded into the handicap index (approximately).</li>
+          <li>New courses are added with the scraper; each comes with its tees, ratings, slopes, yardages, coordinates, and (when found) a tee-time link.</li>
         </ul>
+        <p className="pt-1">
+          Get around with the top nav: <span className="font-semibold">New Round</span>,{" "}
+          <span className="font-semibold">Practice</span>,{" "}
+          <span className="font-semibold">Explore</span>, and{" "}
+          <span className="font-semibold">Leaderboard</span>.
+        </p>
       </Section>
     </div>
   );
