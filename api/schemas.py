@@ -381,6 +381,14 @@ class PracticeSessionIn(BaseModel):
     notes: Optional[str] = None
 
 
+class PracticeSessionUpdate(BaseModel):
+    practiced_on: date
+    range: PracticeActivity = Field(default_factory=PracticeActivity)
+    putting: PracticeActivity = Field(default_factory=PracticeActivity)
+    chipping: PracticeActivity = Field(default_factory=PracticeActivity)
+    notes: Optional[str] = None
+
+
 class PracticeSession(BaseModel):
     id: int
     golfer_id: int

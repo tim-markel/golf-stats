@@ -363,6 +363,14 @@ export interface PracticeSession {
   notes: string | null;
 }
 
+export interface PracticeSessionUpdate {
+  practiced_on: string;
+  range: PracticeActivity;
+  putting: PracticeActivity;
+  chipping: PracticeActivity;
+  notes: string | null;
+}
+
 export const PRACTICE_ACTIVITIES = ["range", "putting", "chipping"] as const;
 export type PracticeActivityKey = (typeof PRACTICE_ACTIVITIES)[number];
 
@@ -427,7 +435,10 @@ export const api = {
     patch<RoundDetail>(`/rounds/${roundId}/holes/${holeId}`, b),
   listPractice: (golferId: number) =>
     get<PracticeSession[]>(`/practice?golfer_id=${golferId}`),
+  getPractice: (id: number) => get<PracticeSession>(`/practice/${id}`),
   createPractice: (b: PracticeSessionIn) =>
     post<PracticeSession>("/practice", b),
+  updatePractice: (id: number, b: PracticeSessionUpdate) =>
+    patch<PracticeSession>(`/practice/${id}`, b),
   deletePractice: (id: number) => del(`/practice/${id}`),
 };

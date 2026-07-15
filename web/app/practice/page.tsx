@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   api,
@@ -8,124 +9,18 @@ import {
   PracticeSession,
   PRACTICE_ACTIVITIES,
 } from "@/lib/api";
+import {
+  ActivityForm,
+  draftHasAny,
+  draftToActivities,
+  emptyPracticeDraft,
+  fmtTime,
+  PRACTICE_LABELS,
+  PracticeDraft,
+  RATING_TEXT,
+  todayStr,
+} from "@/components/practiceUi";
 import { useGolfer } from "@/lib/golfer-context";
-
-const LABELS: Record<PracticeActivityKey, string> = {
-  range: "Range",
-  putting: "Putting",
-  chipping: "Chipping",
-};
-
-const RATINGS: { key: PracticeRating; label: string; on: string }[] = [
-  { key: "good", label: "Good", on: "border-fairway bg-fairway text-white" },
-  { key: "medium", label: "Medium", on: "border-yellow-400 bg-yellow-400 text-white" },
-  { key: "bad", label: "Bad", on: "border-red-500 bg-red-500 text-white" },
-];
-const RATING_TEXT: Record<PracticeRating, string> = {
-  good: "text-fairway",
-  medium: "text-yellow-700",
-  bad: "text-red-600",
-};
-
-type ActDraft = { balls: string; time: string; rating: PracticeRating | null };
-type Draft = Record<PracticeActivityKey, ActDraft>;
-
-const emptyDraft = (): Draft => ({
-  range: { balls: "", time: "", rating: null },
-  putting: { balls: "", time: "", rating: null },
-  chipping: { balls: "", time: "", rating: null },
-});
-
-const num = (s: string): number | null =>
-  s.trim() === "" ? null : Math.max(0, Math.floor(Number(s) || 0));
-
-const today = () => new Date().toISOString().slice(0, 10);
-
-const fmtTime = (m: number) => {
-  if (!m) return "0m";
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return h ? `${h}h ${mm}m` : `${mm}m`;
-};
-
-function RatingButtons({
-  value,
-  onChange,
-}: {
-  value: PracticeRating | null;
-  onChange: (v: PracticeRating | null) => void;
-}) {
-  return (
-    <div className="flex gap-1.5">
-      {RATINGS.map((r) => {
-        // full color when nothing is picked yet or this one is picked;
-        // the others fall back to the plain white box.
-        const colored = value === null || value === r.key;
-        return (
-          <button
-            key={r.key}
-            type="button"
-            onClick={() => onChange(value === r.key ? null : r.key)}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-              colored ? r.on : "border-gray-300 bg-white text-gray-700"
-            }`}
-          >
-            {r.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ActivityForm({
-  label,
-  withBalls,
-  value,
-  onChange,
-}: {
-  label: string;
-  withBalls: boolean;
-  value: ActDraft;
-  onChange: (v: ActDraft) => void;
-}) {
-  const numInput = (k: "balls" | "time", ph: string) => (
-    <input
-      type="number"
-      min={0}
-      inputMode="numeric"
-      placeholder={ph}
-      value={value[k]}
-      onChange={(e) => onChange({ ...value, [k]: e.target.value })}
-      className="w-full rounded-lg border px-2 py-1.5 text-sm outline-none focus:border-fairway"
-    />
-  );
-  return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <div className="mb-2 text-sm font-semibold">{label}</div>
-      <div className={`mb-2 grid gap-2 ${withBalls ? "grid-cols-2" : "grid-cols-1"}`}>
-        {withBalls && (
-          <div>
-            <label className="mb-0.5 block text-[11px] uppercase tracking-wide text-gray-500">
-              # Balls
-            </label>
-            {numInput("balls", "0")}
-          </div>
-        )}
-        <div>
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wide text-gray-500">
-            Time (min)
-          </label>
-          {numInput("time", "0")}
-        </div>
-      </div>
-      <label className="mb-1 block text-[11px] uppercase tracking-wide text-gray-500">
-        How&apos;d it go?
-      </label>
-      <RatingButtons value={value.rating} onChange={(r) => onChange({ ...value, rating: r })} />
-    </div>
-  );
-}
 
 function RatingBar({ good, medium, bad }: { good: number; medium: number; bad: number }) {
   const total = good + medium + bad || 1;
@@ -153,8 +48,8 @@ export default function PracticePage() {
   const { active } = useGolfer();
   const golferId = active?.golfer_id ?? null;
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
-  const [date, setDate] = useState(today);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [date, setDate] = useState(todayStr);
+  const [draft, setDraft] = useState<PracticeDraft>(emptyPracticeDraft);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,9 +79,7 @@ export default function PracticePage() {
     return { acc, totalTime, rangeBalls: acc.range.balls };
   }, [sessions]);
 
-  const hasAny = PRACTICE_ACTIVITIES.some(
-    (a) => draft[a].balls.trim() !== "" || draft[a].time.trim() !== "" || draft[a].rating
-  );
+  const hasAny = draftHasAny(draft);
 
   async function save() {
     if (golferId == null || !hasAny) return;
@@ -196,13 +89,11 @@ export default function PracticePage() {
       const created = await api.createPractice({
         golfer_id: golferId,
         practiced_on: date,
-        range: { balls: num(draft.range.balls), time: num(draft.range.time), rating: draft.range.rating },
-        putting: { balls: null, time: num(draft.putting.time), rating: draft.putting.rating },
-        chipping: { balls: null, time: num(draft.chipping.time), rating: draft.chipping.rating },
+        ...draftToActivities(draft),
         notes: notes.trim() || null,
       });
       setSessions((prev) => [created, ...prev]);
-      setDraft(emptyDraft());
+      setDraft(emptyPracticeDraft());
       setNotes("");
     } catch {
       setError("Could not save the session.");
@@ -256,7 +147,7 @@ export default function PracticePage() {
           return (
             <div key={a} className="card p-4">
               <div className="mb-1 flex items-baseline justify-between">
-                <h3 className="text-sm font-semibold">{LABELS[a]}</h3>
+                <h3 className="text-sm font-semibold">{PRACTICE_LABELS[a]}</h3>
                 <span className="text-xs text-gray-400">
                   {fmtTime(s.time)}
                   {a === "range" && s.balls ? ` · ${s.balls} balls` : ""}
@@ -332,41 +223,42 @@ export default function PracticePage() {
         <h2 className="border-b px-4 py-3 font-semibold">History</h2>
         <ul className="divide-y">
           {sessions.map((s) => (
-            <li key={s.id} className="px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-medium">{s.practiced_on}</div>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-                    {PRACTICE_ACTIVITIES.filter(
-                      (a) => s[a].time != null || s[a].rating || (s[a].balls ?? 0) > 0
-                    ).map((a) => (
-                      <span key={a}>
-                        <span className="font-semibold text-ink">{LABELS[a]}:</span>{" "}
-                        {a === "range" && (s[a].balls ?? 0) > 0 ? `${s[a].balls} balls · ` : ""}
-                        {fmtTime(s[a].time ?? 0)}
-                        {s[a].rating ? (
-                          <>
-                            {" · "}
-                            <span className={RATING_TEXT[s[a].rating as PracticeRating]}>
-                              {s[a].rating}
-                            </span>
-                          </>
-                        ) : (
-                          ""
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                  {s.notes && <div className="mt-1 text-xs text-gray-500">{s.notes}</div>}
+            <li key={s.id} className="flex items-start justify-between gap-3">
+              <Link
+                href={`/practice/${s.id}`}
+                className="min-w-0 flex-1 px-4 py-3 hover:bg-fairway-light"
+              >
+                <div className="font-medium">{s.practiced_on}</div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                  {PRACTICE_ACTIVITIES.filter(
+                    (a) => s[a].time != null || s[a].rating || (s[a].balls ?? 0) > 0
+                  ).map((a) => (
+                    <span key={a}>
+                      <span className="font-semibold text-ink">{PRACTICE_LABELS[a]}:</span>{" "}
+                      {a === "range" && (s[a].balls ?? 0) > 0 ? `${s[a].balls} balls · ` : ""}
+                      {fmtTime(s[a].time ?? 0)}
+                      {s[a].rating ? (
+                        <>
+                          {" · "}
+                          <span className={RATING_TEXT[s[a].rating as PracticeRating]}>
+                            {s[a].rating}
+                          </span>
+                        </>
+                      ) : (
+                        ""
+                      )}
+                    </span>
+                  ))}
                 </div>
-                <button
-                  onClick={() => remove(s.id)}
-                  className="shrink-0 text-gray-400 hover:text-red-600"
-                  title="Delete session"
-                >
-                  ✕
-                </button>
-              </div>
+                {s.notes && <div className="mt-1 text-xs text-gray-500">{s.notes}</div>}
+              </Link>
+              <button
+                onClick={() => remove(s.id)}
+                className="shrink-0 px-3 py-3 text-gray-400 hover:text-red-600"
+                title="Delete session"
+              >
+                ✕
+              </button>
             </li>
           ))}
           {sessions.length === 0 && (

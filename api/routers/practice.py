@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from ..db import pool
-from ..schemas import PracticeSession, PracticeSessionIn
+from ..schemas import PracticeSession, PracticeSessionIn, PracticeSessionUpdate
 
 router = APIRouter(prefix="/practice", tags=["practice"])
 
@@ -72,6 +72,46 @@ def list_practice(golfer_id: int):
             (golfer_id,),
         ).fetchall()
     return [_row_to_session(r) for r in rows]
+
+
+@router.get("/{session_id}", response_model=PracticeSession)
+def get_practice(session_id: int):
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM practice_sessions WHERE id = %s", (session_id,)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(404, "Practice session not found")
+    return _row_to_session(row)
+
+
+@router.patch("/{session_id}", response_model=PracticeSession)
+def update_practice(session_id: int, body: PracticeSessionUpdate):
+    with pool.connection() as conn:
+        with conn.transaction():
+            row = conn.execute(
+                """
+                UPDATE practice_sessions SET
+                    practiced_on = %s,
+                    range_balls = %s, range_time = %s, range_rating = %s,
+                    putting_time = %s, putting_rating = %s,
+                    chipping_time = %s, chipping_rating = %s,
+                    notes = %s
+                WHERE id = %s
+                RETURNING *
+                """,
+                (
+                    body.practiced_on,
+                    body.range.balls, body.range.time, body.range.rating,
+                    body.putting.time, body.putting.rating,
+                    body.chipping.time, body.chipping.rating,
+                    body.notes,
+                    session_id,
+                ),
+            ).fetchone()
+    if row is None:
+        raise HTTPException(404, "Practice session not found")
+    return _row_to_session(row)
 
 
 @router.delete("/{session_id}", status_code=204)
