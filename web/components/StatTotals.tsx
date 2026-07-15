@@ -326,10 +326,11 @@ function ScatterCard({
 }
 
 // Side stat used inside the scatter cards (matches the bar-chart side stats).
-function PctSide({ label, pct }: { label: string; pct: number }) {
+function PctSide({ top, label, pct }: { top: string; label: string; pct: number }) {
   return (
     <div className="shrink-0 space-y-1.5 px-1 text-center">
       <div>
+        <div className="text-[11px] uppercase tracking-wide text-gray-500">{top}</div>
         <div className="text-[11px] uppercase tracking-wide text-gray-500">{label}</div>
         <div className="text-lg font-bold text-fairway">{Math.round(pct)}%</div>
       </div>
@@ -499,7 +500,7 @@ export default function StatTotals({
                 data={data.girVsScore}
                 side={
                   data.girParPct != null ? (
-                    <PctSide label="Par or better" pct={data.girParPct} />
+                    <PctSide top="Green Hit" label="Par or better" pct={data.girParPct} />
                   ) : undefined
                 }
               />
@@ -515,7 +516,7 @@ export default function StatTotals({
                 data={data.fwVsScore}
                 side={
                   data.fwParPct != null ? (
-                    <PctSide label="Par or better" pct={data.fwParPct} />
+                    <PctSide top="Fairway hit" label="Par or better" pct={data.fwParPct} />
                   ) : undefined
                 }
               />
