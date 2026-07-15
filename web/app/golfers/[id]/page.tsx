@@ -291,15 +291,9 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
                     <div className="text-gray-500">{r.played_on}</div>
                   </div>
                   <div className="flex items-center gap-3 text-right">
-                    <div>
-                      <div className="font-semibold">
-                        {r.total_score ?? "—"}{" "}
-                        <span className="text-gray-400">({r.holes_played})</span>
-                      </div>
-                      <div className="text-gray-500">
-                        {r.total_putts ?? "—"} putts
-                        {r.beers_finished ? ` · ${r.beers_finished} 🍺` : ""}
-                      </div>
+                    <div className="font-semibold">
+                      {r.total_score ?? "—"}{" "}
+                      <span className="text-gray-400">({r.holes_played})</span>
                     </div>
                     <span className="text-gray-300">›</span>
                   </div>
