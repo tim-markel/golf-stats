@@ -146,6 +146,15 @@ def golfer_season(golfer_id: int):
             "AND rs.total_score IS NOT NULL AND rs.total_putts IS NOT NULL",
             (golfer_id,),
         ).fetchall()
+        # paired GIR/fairways + score per 18-hole round for their scatter plots
+        gf18 = conn.execute(
+            "SELECT rs.total_score AS score, rs.greens_in_reg AS gir, "
+            "rs.fairways_hit AS fw "
+            "FROM round_stats rs JOIN rounds r ON r.round_id = rs.round_id "
+            "WHERE r.golfer_id = %s AND rs.holes_played = 18 "
+            "AND rs.total_score IS NOT NULL",
+            (golfer_id,),
+        ).fetchall()
         beers = conn.execute(
             "SELECT COUNT(*) AS n, COALESCE(SUM(hb.size_oz), 0) AS oz "
             "FROM hole_beer hb JOIN hole_stats hs ON hs.id = hb.hole_stat_id "
@@ -176,6 +185,8 @@ def golfer_season(golfer_id: int):
     balls_lost = penalty_strokes = hotdogs = gir_count = 0
     fairways_hit = fairways_total = total_putts = putt_holes = 0
     up_downs_made = up_downs_attempts = 0
+    # par-or-better conversion when the green / fairway was hit
+    gir_par_num = gir_par_den = fw_par_num = fw_par_den = 0
 
     for h in holes:
         balls_lost += h["balls_lost"] or 0
@@ -209,6 +220,13 @@ def golfer_season(golfer_id: int):
                  else "Bogey" if d == 1 else "Double" if d == 2 else "Triple+")
             score_counts[k] += 1
             par_groups[h["par"]].append(h["score"])
+            par_or_better = d <= 0
+            if h["gir"]:
+                gir_par_den += 1
+                gir_par_num += 1 if par_or_better else 0
+            if h["par"] >= 4 and h["driving_accuracy"] == "fairway":
+                fw_par_den += 1
+                fw_par_num += 1 if par_or_better else 0
 
     par_averages = [
         {"par": p, "avg": round(sum(v) / len(v), 2)}
@@ -244,4 +262,8 @@ def golfer_season(golfer_id: int):
         "putts_vs_score": [
             {"score": r["score"], "putts": r["putts"]} for r in pv18
         ],
+        "gir_vs_score": [{"score": r["score"], "count": r["gir"]} for r in gf18],
+        "fw_vs_score": [{"score": r["score"], "count": r["fw"]} for r in gf18],
+        "gir_par_pct": (100.0 * gir_par_num / gir_par_den) if gir_par_den else None,
+        "fw_par_pct": (100.0 * fw_par_num / fw_par_den) if fw_par_den else None,
     }

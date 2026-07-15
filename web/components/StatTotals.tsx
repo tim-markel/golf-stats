@@ -49,6 +49,12 @@ export interface StatTotalsData {
   roundScoreStats?: { low: number; high: number; avg: number };
   // when set (season totals), adds a putts-vs-score scatter plot
   puttsVsScore?: { putts: number; score: number }[];
+  // season-only: GIR/fairways-vs-score scatters + par-or-better conversion %.
+  // girVsScore being defined switches StatTotals into the season layout.
+  girVsScore?: { x: number; score: number }[];
+  fwVsScore?: { x: number; score: number }[];
+  girParPct?: number | null;
+  fwParPct?: number | null;
 }
 
 // Tile with the headline on top and a single big value below (e.g. Beers).
@@ -253,13 +259,17 @@ function DispersionTarget({
   );
 }
 
-// Putts (x) vs total score (y) for 18-hole rounds — one green dot per round.
+// A metric (x) vs total score (y) for 18-hole rounds — one green dot per round.
 function ScatterCard({
   title,
   data,
+  xName,
+  side,
 }: {
   title: string;
-  data: { putts: number; score: number }[];
+  data: { x: number; score: number }[];
+  xName: string;
+  side?: React.ReactNode;
 }) {
   if (data.length === 0) return null;
   const Tip = ({ active, payload }: any) => {
@@ -268,37 +278,61 @@ function ScatterCard({
     return (
       <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm shadow-card">
         <div className="font-bold text-fairway">Score {p.score}</div>
-        <div className="text-xs text-gray-500">{p.putts} putts</div>
+        <div className="text-xs text-gray-500">
+          {p.x} {xName.toLowerCase()}
+        </div>
       </div>
     );
   };
+  const chart = (
+    <ResponsiveContainer width="100%" height={200}>
+      <ScatterChart margin={{ left: -18, right: 8, top: 8, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis
+          type="number"
+          dataKey="x"
+          name={xName}
+          domain={["auto", "auto"]}
+          allowDecimals={false}
+          tick={{ fontSize: 11 }}
+        />
+        <YAxis
+          type="number"
+          dataKey="score"
+          name="Score"
+          domain={["auto", "auto"]}
+          allowDecimals={false}
+          tick={{ fontSize: 12 }}
+        />
+        <ZAxis range={[55, 55]} />
+        <Tooltip content={<Tip />} cursor={{ strokeDasharray: "3 3" }} />
+        <Scatter data={data} fill="#15663f" fillOpacity={0.75} />
+      </ScatterChart>
+    </ResponsiveContainer>
+  );
   return (
     <div className="card p-4">
       <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-      <ResponsiveContainer width="100%" height={200}>
-        <ScatterChart margin={{ left: -18, right: 8, top: 8, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            type="number"
-            dataKey="putts"
-            name="Putts"
-            domain={["auto", "auto"]}
-            allowDecimals={false}
-            tick={{ fontSize: 11 }}
-          />
-          <YAxis
-            type="number"
-            dataKey="score"
-            name="Score"
-            domain={["auto", "auto"]}
-            allowDecimals={false}
-            tick={{ fontSize: 12 }}
-          />
-          <ZAxis range={[55, 55]} />
-          <Tooltip content={<Tip />} cursor={{ strokeDasharray: "3 3" }} />
-          <Scatter data={data} fill="#15663f" fillOpacity={0.75} />
-        </ScatterChart>
-      </ResponsiveContainer>
+      {side ? (
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">{chart}</div>
+          {side}
+        </div>
+      ) : (
+        chart
+      )}
+    </div>
+  );
+}
+
+// Side stat used inside the scatter cards (matches the bar-chart side stats).
+function PctSide({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div className="shrink-0 space-y-1.5 px-1 text-center">
+      <div>
+        <div className="text-[11px] uppercase tracking-wide text-gray-500">{label}</div>
+        <div className="text-lg font-bold text-fairway">{Math.round(pct)}%</div>
+      </div>
     </div>
   );
 }
@@ -333,115 +367,176 @@ export default function StatTotals({
       : []),
   ];
 
+  const approachTile = (
+    <DispersionTarget
+      title="Approach"
+      layout={APPROACH_LAYOUT}
+      centerKey="on"
+      centerLabel="green hit"
+      counts={data.approachCounts}
+      summaryLabel="GIR"
+      summaryValue={`${data.girCount}/${data.holesCount}`}
+    />
+  );
+  const fairwaysTile = (
+    <DispersionTarget
+      title="Fairways"
+      layout={DRIVING_LAYOUT}
+      centerKey="fairway"
+      centerLabel="FW hit"
+      counts={data.fwCounts}
+      summaryLabel="FW"
+      summaryValue={`${data.fairwaysHit}/${data.fairwaysTotal}`}
+    />
+  );
+  const scoreDistTile =
+    data.roundScoreBins && data.roundScoreBins.length > 0 ? (
+      <StatBar
+        title="Score Distribution"
+        data={data.roundScoreBins}
+        side={
+          data.roundScoreStats ? (
+            <div className="shrink-0 space-y-1.5 px-1 text-center">
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Low</div>
+                <div className="text-lg font-bold text-fairway">{data.roundScoreStats.low}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Avg</div>
+                <div className="text-lg font-bold text-fairway">
+                  {data.roundScoreStats.avg.toFixed(1)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">High</div>
+                <div className="text-lg font-bold text-fairway">{data.roundScoreStats.high}</div>
+              </div>
+            </div>
+          ) : undefined
+        }
+      />
+    ) : null;
+  const holeScoreTile = (
+    <StatBar
+      title="Hole Score Distribution"
+      data={scorePie}
+      side={
+        data.parAverages.length ? (
+          <div className="shrink-0 space-y-1.5 px-1 text-center">
+            {data.parAverages.map((p) => (
+              <div key={p.par}>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                  Par {p.par}
+                </div>
+                <div className="text-lg font-bold text-fairway">{p.avg.toFixed(1)}</div>
+              </div>
+            ))}
+          </div>
+        ) : undefined
+      }
+    />
+  );
+  const puttDistTile = (
+    <StatBar
+      title="Putt distribution"
+      data={puttPie}
+      side={
+        data.totalPutts != null ? (
+          <div className="shrink-0 space-y-1.5 px-1 text-center">
+            {data.puttAvgPerRound != null ? (
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Avg/round</div>
+                <div className="text-lg font-bold text-fairway">
+                  {data.puttAvgPerRound.toFixed(1)}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
+                <div className="text-lg font-bold text-fairway">{data.totalPutts}</div>
+              </div>
+            )}
+            {data.avgPutts != null && (
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-gray-500">Avg/hole</div>
+                <div className="text-lg font-bold text-fairway">{data.avgPutts.toFixed(1)}</div>
+              </div>
+            )}
+          </div>
+        ) : undefined
+      }
+    />
+  );
+  const puttsScatter =
+    data.puttsVsScore && data.puttsVsScore.length > 0 ? (
+      <ScatterCard
+        title="Putts vs Score"
+        xName="Putts"
+        data={data.puttsVsScore.map((p) => ({ x: p.putts, score: p.score }))}
+      />
+    ) : null;
+
+  const isSeason = data.girVsScore !== undefined;
+
   return (
     <section>
       <h2 className="mb-2 font-semibold">{title}</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <DispersionTarget
-          title="Approach"
-          layout={APPROACH_LAYOUT}
-          centerKey="on"
-          centerLabel="green hit"
-          counts={data.approachCounts}
-          summaryLabel="GIR"
-          summaryValue={`${data.girCount}/${data.holesCount}`}
-        />
-        <DispersionTarget
-          title="Fairways"
-          layout={DRIVING_LAYOUT}
-          centerKey="fairway"
-          centerLabel="FW hit"
-          counts={data.fwCounts}
-          summaryLabel="FW"
-          summaryValue={`${data.fairwaysHit}/${data.fairwaysTotal}`}
-        />
-        {data.roundScoreBins && data.roundScoreBins.length > 0 && (
-          <StatBar
-            title="Score Distribution"
-            data={data.roundScoreBins}
-            side={
-              data.roundScoreStats ? (
-                <div className="shrink-0 space-y-1.5 px-1 text-center">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Low</div>
-                    <div className="text-lg font-bold text-fairway">
-                      {data.roundScoreStats.low}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Avg</div>
-                    <div className="text-lg font-bold text-fairway">
-                      {data.roundScoreStats.avg.toFixed(1)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">High</div>
-                    <div className="text-lg font-bold text-fairway">
-                      {data.roundScoreStats.high}
-                    </div>
-                  </div>
-                </div>
-              ) : undefined
-            }
-          />
-        )}
-        <StatBar
-          title="Hole Score Distribution"
-          data={scorePie}
-          side={
-            data.parAverages.length ? (
-              <div className="shrink-0 space-y-1.5 px-1 text-center">
-                {data.parAverages.map((p) => (
-                  <div key={p.par}>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">
-                      Par {p.par}
-                    </div>
-                    <div className="text-lg font-bold text-fairway">{p.avg.toFixed(1)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : undefined
-          }
-        />
-        <StatBar
-          title="Putt distribution"
-          data={puttPie}
-          side={
-            data.totalPutts != null ? (
-              <div className="shrink-0 space-y-1.5 px-1 text-center">
-                {data.puttAvgPerRound != null ? (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">
-                      Avg/round
-                    </div>
-                    <div className="text-lg font-bold text-fairway">
-                      {data.puttAvgPerRound.toFixed(1)}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
-                    <div className="text-lg font-bold text-fairway">{data.totalPutts}</div>
-                  </div>
-                )}
-                {data.avgPutts != null && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">
-                      Avg/hole
-                    </div>
-                    <div className="text-lg font-bold text-fairway">
-                      {data.avgPutts.toFixed(1)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : undefined
-          }
-        />
-        {data.puttsVsScore && data.puttsVsScore.length > 0 && (
-          <ScatterCard title="Putts vs Score" data={data.puttsVsScore} />
-        )}
-      </div>
+
+      {isSeason ? (
+        <div className="space-y-3">
+          {/* score distributions */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {scoreDistTile}
+            {holeScoreTile}
+          </div>
+          {/* greens: dispersion + GIR-vs-score (with par-or-better conversion) */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {approachTile}
+            {data.girVsScore && data.girVsScore.length > 0 && (
+              <ScatterCard
+                title="GIR vs Score"
+                xName="GIR"
+                data={data.girVsScore}
+                side={
+                  data.girParPct != null ? (
+                    <PctSide label="Par or better" pct={data.girParPct} />
+                  ) : undefined
+                }
+              />
+            )}
+          </div>
+          {/* fairways: dispersion + FW-vs-score (with par-or-better conversion) */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {fairwaysTile}
+            {data.fwVsScore && data.fwVsScore.length > 0 && (
+              <ScatterCard
+                title="Fairways vs Score"
+                xName="Fairways"
+                data={data.fwVsScore}
+                side={
+                  data.fwParPct != null ? (
+                    <PctSide label="Par or better" pct={data.fwParPct} />
+                  ) : undefined
+                }
+              />
+            )}
+          </div>
+          {/* putts */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {puttDistTile}
+            {puttsScatter}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {approachTile}
+          {fairwaysTile}
+          {scoreDistTile}
+          {holeScoreTile}
+          {puttDistTile}
+          {puttsScatter}
+        </div>
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-3">
         {hazardsTotal > 0 && <BreakdownTile title="Hazards hit" items={hazardItems} />}

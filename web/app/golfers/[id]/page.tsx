@@ -69,6 +69,10 @@ function seasonToTotals(s: SeasonStats): StatTotalsData {
         }
       : undefined,
     puttsVsScore: s.putts_vs_score.map((p) => ({ putts: p.putts, score: p.score })),
+    girVsScore: s.gir_vs_score.map((p) => ({ x: p.count, score: p.score })),
+    fwVsScore: s.fw_vs_score.map((p) => ({ x: p.count, score: p.score })),
+    girParPct: s.gir_par_pct,
+    fwParPct: s.fw_par_pct,
   };
 }
 

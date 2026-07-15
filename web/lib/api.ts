@@ -172,6 +172,10 @@ export interface SeasonStats {
   putt_avg_per_round: number | null;
   round_scores: number[];
   putts_vs_score: { score: number; putts: number }[];
+  gir_vs_score: { score: number; count: number }[];
+  fw_vs_score: { score: number; count: number }[];
+  gir_par_pct: number | null;
+  fw_par_pct: number | null;
 }
 
 export interface LeaderboardGolfer {
