@@ -1,14 +1,18 @@
 """Outbound email.
 
-Delivery is pluggable. With no provider configured (the default), emails are
-"sent" in dev mode: logged to the server console and appended to
-``dev_emails.log`` so you can read exactly what a user would receive. To send
-real email later, set EMAIL_PROVIDER and implement ``_send_via_provider``
-(e.g. Resend or SMTP) — nothing else has to change.
+Delivery is pluggable via EMAIL_PROVIDER:
+  - unset (default): dev mode — logs to the console and ``dev_emails.log``.
+  - "resend": sends through Resend's HTTP API. Needs RESEND_API_KEY; the
+    From address is EMAIL_FROM (default ``onboarding@resend.dev``).
+
+Any provider failure falls back to the dev log so a reset link is never lost.
 """
 from __future__ import annotations
 
+import json
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -69,7 +73,47 @@ def _send_dev(to: str, subject: str, body: str) -> None:
 
 
 def _send_via_provider(provider: str, to: str, subject: str, body: str) -> None:
-    # Wire a real transactional provider here (Resend, SMTP, SES, ...).
-    raise NotImplementedError(
-        f"EMAIL_PROVIDER={provider!r} is set but no provider is implemented yet."
+    if provider == "resend":
+        _send_resend(to, subject, body)
+    else:
+        # Unknown provider — don't lose the message.
+        print(f"Unknown EMAIL_PROVIDER={provider!r}; falling back to dev log", flush=True)
+        _send_dev(to, subject, body)
+
+
+def _send_resend(to: str, subject: str, body: str) -> None:
+    api_key = os.environ.get("RESEND_API_KEY")
+    sender = os.environ.get("EMAIL_FROM", "onboarding@resend.dev")
+    if not api_key:
+        print(
+            "EMAIL_PROVIDER=resend but RESEND_API_KEY is not set; using dev log",
+            flush=True,
+        )
+        _send_dev(to, subject, body)
+        return
+
+    payload = json.dumps(
+        {"from": sender, "to": [to], "subject": subject, "text": body}
+    ).encode()
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            # A real User-Agent — Cloudflare (in front of Resend) blocks the
+            # default urllib UA with a 403 (error 1010).
+            "User-Agent": "BogeyBook/1.0",
+        },
     )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")
+        print(f"Resend send failed ({exc.code}): {detail}", flush=True)
+        _send_dev(to, subject, body)  # fallback so the link isn't lost
+    except Exception as exc:  # network error, timeout, ...
+        print(f"Resend send error: {exc}", flush=True)
+        _send_dev(to, subject, body)
