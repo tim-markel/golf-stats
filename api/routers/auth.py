@@ -78,17 +78,19 @@ def login(body: LoginIn):
 
 @router.post("/request-password-reset")
 def request_password_reset(body: PasswordResetRequest):
-    """Email a reset link. Always returns ok (doesn't reveal if the email exists)."""
+    """Email a reset link. 404s if no account has that email."""
     email = body.email.strip().lower()
+    row = None
     if email:
         with pool.connection() as conn:
             row = conn.execute(
                 "SELECT golfer_id, name FROM golfers WHERE lower(email) = %s", (email,)
             ).fetchone()
-        if row:
-            token = create_reset_token(row["golfer_id"])
-            url = f"{_FRONTEND_URL}/reset-password?token={token}"
-            send_password_reset_email(email, row["name"], url)
+    if row is None:
+        raise HTTPException(404, "No account found with that email")
+    token = create_reset_token(row["golfer_id"])
+    url = f"{_FRONTEND_URL}/reset-password?token={token}"
+    send_password_reset_email(email, row["name"], url)
     return {"ok": True}
 
 

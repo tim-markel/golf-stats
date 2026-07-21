@@ -22,8 +22,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     if (!authGolfer && !isAuthRoute) router.replace("/login");
-    if (authGolfer && isAuthRoute) router.replace("/");
-  }, [ready, authGolfer, isAuthRoute, router]);
+    // Signed-in users skip login/signup, but may still open a reset link.
+    if (authGolfer && (pathname === "/login" || pathname === "/signup")) {
+      router.replace("/");
+    }
+  }, [ready, authGolfer, isAuthRoute, pathname, router]);
 
   if (!ready) {
     return <div className="p-8 text-sm text-gray-500">Loading…</div>;

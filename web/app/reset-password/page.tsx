@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Yellowtail } from "next/font/google";
 import { auth } from "@/lib/api";
 import { useGolfer } from "@/lib/golfer-context";
@@ -24,8 +24,10 @@ function Wordmark({ subtitle }: { subtitle: string }) {
 function ResetForm() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
-  const { setSession } = useGolfer();
+  const router = useRouter();
+  const { logout } = useGolfer();
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -46,11 +48,20 @@ function ResetForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (!password) {
+      setErr("Enter a new password.");
+      return;
+    }
+    if (password !== confirm) {
+      setErr("Passwords don't match.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
-      const result = await auth.resetPassword({ token, password });
-      await setSession(result); // signs in; Shell redirects Home
+      await auth.resetPassword({ token, password });
+      logout(); // clear any existing session so they sign in fresh
+      router.replace("/login");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not reset your password");
       setBusy(false);
@@ -72,9 +83,22 @@ function ResetForm() {
             required
           />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-gray-500">
+            Confirm new password
+          </span>
+          <input
+            className="input"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+          />
+        </label>
         {err && <p className="text-sm text-red-600">{err}</p>}
         <button className="btn-primary w-full" disabled={busy}>
-          {busy ? "Updating…" : "Update password"}
+          {busy ? "Resetting…" : "Reset"}
         </button>
       </form>
     </div>
