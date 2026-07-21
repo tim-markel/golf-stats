@@ -16,7 +16,6 @@ import {
 import { api, GolferStats, PracticeSession, SeasonStats } from "@/lib/api";
 import StatTotals, { StatTotalsData } from "@/components/StatTotals";
 import RoundsCalendar from "@/components/RoundsCalendar";
-import { useGolfer } from "@/lib/golfer-context";
 
 // Distribution of 18-hole round totals, one bar per score, filling gaps so the
 // bar chart runs continuously from the lowest to the highest score.
@@ -119,7 +118,6 @@ function ScoreTooltip(props: any) {
 export default function GolferStatsPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
-  const { setActive } = useGolfer();
   const [data, setData] = useState<GolferStats | null>(null);
   const [season, setSeason] = useState<SeasonStats | null>(null);
   const [practice, setPractice] = useState<PracticeSession[]>([]);
@@ -129,7 +127,6 @@ export default function GolferStatsPage({ params }: { params: { id: string } }) 
   const [chartW, setChartW] = useState(0);
 
   function startNewRound() {
-    setActive(id); // the round will be for this golfer
     router.push("/rounds/new");
   }
 

@@ -7,32 +7,40 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { api, Golfer } from "./api";
+import { api, auth, AuthResult, Golfer } from "./api";
 
-const STORAGE_KEY = "activeGolferId";
+const TOKEN_KEY = "bb_token";
 const NORMAL_VIEW_KEY = "viewAsNormal";
 const IMPERSONATE_KEY = "impersonatedGolferId";
 
 interface GolferCtx {
   golfers: Golfer[];
-  active: Golfer | null; // effective identity — the impersonated golfer while impersonating, else the real account
+  active: Golfer | null; // effective identity — impersonated golfer while impersonating, else the signed-in account
   viewer: Golfer | null; // effective golfer for role gating (roles stripped in normal view)
-  ready: boolean; // true once the initial load has finished
-  viewAsNormal: boolean; // super admin is viewing the UI as a normal golfer
+  ready: boolean; // true once the initial session check has finished
+  authGolfer: Golfer | null; // the real signed-in account (null when logged out)
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  setSession: (result: AuthResult) => Promise<void>;
+  logout: () => void;
+  viewAsNormal: boolean;
   setViewAsNormal: (v: boolean) => void;
-  impersonating: boolean; // super admin is acting as another golfer
+  impersonating: boolean;
   impersonate: (id: number) => void;
   stopImpersonating: () => void;
-  setActive: (id: number | null) => void;
   refresh: () => Promise<Golfer[]>;
   updateActive: (patch: { name?: string; handicap?: number | null }) => Promise<void>;
 }
 
 const Ctx = createContext<GolferCtx | null>(null);
 
+function token(): string | null {
+  return typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+}
+
 export function GolferProvider({ children }: { children: ReactNode }) {
   const [golfers, setGolfers] = useState<Golfer[]>([]);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [authGolfer, setAuthGolfer] = useState<Golfer | null>(null);
   const [ready, setReady] = useState(false);
   const [viewAsNormalPref, setViewAsNormalPref] = useState(false);
   const [impersonatedId, setImpersonatedId] = useState<number | null>(null);
@@ -47,42 +55,62 @@ export function GolferProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // On mount: load golfers and restore (or default) the active golfer.
+  // On mount: restore prefs and the session (from the stored token).
   useEffect(() => {
-    const saved =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
     if (typeof window !== "undefined") {
       setViewAsNormalPref(localStorage.getItem(NORMAL_VIEW_KEY) === "1");
       const imp = localStorage.getItem(IMPERSONATE_KEY);
       if (imp) setImpersonatedId(Number(imp));
     }
-    refresh().then((gs) => {
-      if (saved && gs.some((g) => g.golfer_id === Number(saved))) {
-        setActiveId(Number(saved));
-      } else if (gs.length > 0) {
-        setActive(gs[0].golfer_id); // default to the first golfer
-      }
+    const t = token();
+    if (!t) {
       setReady(true);
-    });
+      return;
+    }
+    auth
+      .me(t)
+      .then((g) => {
+        setAuthGolfer(g);
+        return refresh();
+      })
+      .catch(() => {
+        if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
+        setAuthGolfer(null);
+      })
+      .finally(() => setReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function setActive(id: number | null) {
-    // While impersonating, never let navigation reassign the *real* account —
-    // that would strand the super admin as the impersonated (normal) golfer.
-    if (impersonatedId != null) return;
-    setActiveId(id);
-    if (typeof window === "undefined") return;
-    if (id == null) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, String(id));
+  async function setSession(result: AuthResult) {
+    if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, result.token);
+    setAuthGolfer(result.golfer);
+    await refresh();
+  }
+
+  async function login(email: string, password: string) {
+    await setSession(await auth.login({ email, password }));
+  }
+
+  async function signup(name: string, email: string, password: string) {
+    await setSession(await auth.signup({ name, email, password }));
+  }
+
+  function logout() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(IMPERSONATE_KEY);
+      localStorage.removeItem(NORMAL_VIEW_KEY);
+    }
+    setAuthGolfer(null);
+    setImpersonatedId(null);
+    setViewAsNormalPref(false);
   }
 
   // The real signed-in account (before any impersonation).
-  const realActive = golfers.find((g) => g.golfer_id === activeId) ?? null;
+  const realActive = authGolfer;
   const canImpersonate = !!realActive?.is_super_admin;
 
-  // While impersonating, the super admin *becomes* the chosen golfer: their
-  // identity, role, and data. Only the super admin may impersonate.
+  // While impersonating, the super admin *becomes* the chosen golfer.
   const impersonated =
     canImpersonate && impersonatedId != null
       ? golfers.find((g) => g.golfer_id === impersonatedId) ?? null
@@ -95,6 +123,15 @@ export function GolferProvider({ children }: { children: ReactNode }) {
     if (id == null) return;
     await api.updateGolfer(id, patch);
     await refresh();
+    // Refresh the signed-in account too, in case we just edited ourselves.
+    const t = token();
+    if (t) {
+      try {
+        setAuthGolfer(await auth.me(t));
+      } catch {
+        /* keep current */
+      }
+    }
   }
 
   function setViewAsNormal(v: boolean) {
@@ -118,9 +155,8 @@ export function GolferProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Self-heal: if an impersonation is stored but the real account can't
-  // impersonate (not a super admin) or the target no longer exists, drop it so
-  // no one is left stranded in an unexitable state.
+  // Self-heal: drop a stored impersonation that can't apply (not a super admin,
+  // or the target no longer exists) so no one is stranded.
   useEffect(() => {
     if (!ready || impersonatedId == null) return;
     const canStill = !!realActive?.is_super_admin;
@@ -146,12 +182,16 @@ export function GolferProvider({ children }: { children: ReactNode }) {
         active,
         viewer,
         ready,
+        authGolfer,
+        login,
+        signup,
+        setSession,
+        logout,
         viewAsNormal,
         setViewAsNormal,
         impersonating,
         impersonate,
         stopImpersonating,
-        setActive,
         refresh,
         updateActive,
       }}

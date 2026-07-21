@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { api, Golfer } from "@/lib/api";
+import { api, auth, Golfer } from "@/lib/api";
 import { useGolfer } from "@/lib/golfer-context";
 
 type Tab = "profile" | "users";
@@ -87,8 +87,16 @@ function EyeOffIcon() {
 }
 
 export default function SettingsPage() {
-  const { active, viewer, golfers, ready, updateActive, refresh, setViewAsNormal, impersonate } =
-    useGolfer();
+  const {
+    active,
+    viewer,
+    golfers,
+    ready,
+    updateActive,
+    refresh,
+    setViewAsNormal,
+    impersonate,
+  } = useGolfer();
   const [tab, setTab] = useState<Tab>("profile");
 
   if (!ready) return <p className="text-sm text-gray-500">Loading…</p>;
@@ -170,18 +178,20 @@ function ProfileTab({
   const [name, setName] = useState(active.name);
   const [hcp, setHcp] = useState(active.handicap != null ? String(active.handicap) : "");
   const [email, setEmail] = useState(active.email ?? "");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Password reset (emailed link) state.
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetErr, setResetErr] = useState<string | null>(null);
 
   const emailChanged = (email.trim() || null) !== (active.email || null);
   const dirty =
     name.trim() !== active.name ||
     (hcp === "" ? active.handicap != null : Number(hcp) !== active.handicap) ||
-    emailChanged ||
-    password.length > 0;
+    emailChanged;
 
   function touched() {
     setSaved(false);
@@ -201,20 +211,36 @@ function ProfileTab({
       ) {
         await onSave({ name: name.trim(), handicap: hcp === "" ? null : Number(hcp) });
       }
-      // email + password go through the credentials endpoint
-      const creds: { email?: string | null; password?: string } = {};
-      if (emailChanged) creds.email = email.trim() ? email.trim() : null;
-      if (password) creds.password = password;
-      if (Object.keys(creds).length) {
-        await api.setCredentials(active.golfer_id, creds);
+      // email goes through the credentials endpoint
+      if (emailChanged) {
+        await api.setCredentials(active.golfer_id, {
+          email: email.trim() ? email.trim() : null,
+        });
         await refresh();
       }
-      setPassword("");
       setSaved(true);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not save");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function sendReset() {
+    setResetMsg(null);
+    setResetErr(null);
+    if (!active.email) {
+      setResetErr("Add an email above and save it first.");
+      return;
+    }
+    setResetBusy(true);
+    try {
+      await auth.requestPasswordReset(active.email);
+      setResetMsg(`Password reset link sent to ${active.email}.`);
+    } catch (e) {
+      setResetErr(e instanceof Error ? e.message : "Could not send reset email");
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -265,32 +291,19 @@ function ProfileTab({
             }}
           />
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-gray-500">
-            Password{" "}
-            <span className="font-normal text-gray-400">(blank to keep current)</span>
-          </span>
-          <div className="relative">
-            <input
-              className="input pr-10"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                touched();
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((s) => !s)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700"
-            >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          </div>
-        </label>
+        <div className="block">
+          <span className="mb-1 block text-xs font-medium text-gray-500">Password</span>
+          <button
+            type="button"
+            onClick={sendReset}
+            disabled={resetBusy}
+            className="text-sm font-medium text-fairway underline disabled:opacity-50"
+          >
+            {resetBusy ? "Sending…" : "Update password"}
+          </button>
+          {resetMsg && <p className="mt-1 text-xs text-fairway">{resetMsg}</p>}
+          {resetErr && <p className="mt-1 text-xs text-red-600">{resetErr}</p>}
+        </div>
       </div>
 
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
