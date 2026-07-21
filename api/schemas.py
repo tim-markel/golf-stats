@@ -42,6 +42,31 @@ class CredentialsUpdate(BaseModel):
     password: Optional[str] = None
 
 
+class SignupIn(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class AuthResult(BaseModel):
+    token: str
+    golfer: Golfer
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class PasswordReset(BaseModel):
+    token: str
+    password: str
+
+
 # --- courses (read-only here; populated by the scraper) --------------------
 class Hole(BaseModel):
     id: int

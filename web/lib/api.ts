@@ -423,6 +423,55 @@ async function del(path: string): Promise<void> {
   if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
 }
 
+// --- auth ------------------------------------------------------------------
+export interface AuthResult {
+  token: string;
+  golfer: Golfer;
+}
+
+async function authPost(path: string, body: unknown): Promise<AuthResult> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail || `POST ${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function authPostVoid(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail || `POST ${path} failed: ${res.status}`);
+  }
+}
+
+export const auth = {
+  signup: (b: { name: string; email: string; password: string }) =>
+    authPost("/auth/signup", b),
+  login: (b: { email: string; password: string }) => authPost("/auth/login", b),
+  me: async (token: string): Promise<Golfer> => {
+    const res = await fetch(`${API_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Not authenticated");
+    return res.json();
+  },
+  requestPasswordReset: (email: string) =>
+    authPostVoid("/auth/request-password-reset", { email }),
+  resetPassword: (b: { token: string; password: string }) =>
+    authPost("/auth/reset-password", b),
+};
+
 export const api = {
   listGolfers: () => get<Golfer[]>("/golfers"),
   getGolfer: (id: number) => get<Golfer>(`/golfers/${id}`),

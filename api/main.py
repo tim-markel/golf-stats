@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import pool
 from .routers import (
+    auth,
     beers,
     courses,
     golfers,
@@ -41,6 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(golfers.router)
 app.include_router(courses.router)
 app.include_router(beers.router)

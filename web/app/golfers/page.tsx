@@ -6,7 +6,7 @@ import { api, Golfer } from "@/lib/api";
 import { useGolfer } from "@/lib/golfer-context";
 
 export default function GolfersPage() {
-  const { active, viewer, ready, setActive, refresh: refreshActive } = useGolfer();
+  const { active, viewer, ready, refresh: refreshActive } = useGolfer();
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [name, setName] = useState("");
   const [handicap, setHandicap] = useState("");
@@ -57,7 +57,7 @@ export default function GolfersPage() {
     setHandicap("");
     refresh();
     refreshActive();
-    setActive(created.golfer_id); // make the new golfer active
+    void created;
   }
 
   return (
@@ -92,7 +92,6 @@ export default function GolfersPage() {
             <li key={g.golfer_id}>
               <Link
                 href={`/golfers/${g.golfer_id}`}
-                onClick={() => setActive(g.golfer_id)}
                 className="flex items-center justify-between px-4 py-3 hover:bg-fairway-light"
               >
                 <span className="font-medium">{g.name}</span>
