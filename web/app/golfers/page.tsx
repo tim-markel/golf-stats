@@ -6,12 +6,16 @@ import { api, Golfer } from "@/lib/api";
 import { useGolfer } from "@/lib/golfer-context";
 
 export default function GolfersPage() {
-  const { setActive, refresh: refreshActive } = useGolfer();
+  const { active, viewer, ready, setActive, refresh: refreshActive } = useGolfer();
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [name, setName] = useState("");
   const [handicap, setHandicap] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Only admins / the super admin may create or switch golfers.
+  // Uses the effective viewer so "normal view" impersonation is also blocked.
+  const canManage = !!viewer && (viewer.is_admin || viewer.is_super_admin);
 
   async function refresh() {
     try {
@@ -26,6 +30,21 @@ export default function GolfersPage() {
   useEffect(() => {
     refresh();
   }, []);
+
+  if (ready && !canManage) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold tracking-tight">Golfers</h1>
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          Only admins can create or change golfers. You’re signed in as{" "}
+          <span className="font-semibold">{active?.name ?? "a normal user"}</span>.
+        </p>
+        <Link href="/settings" className="btn-ghost">
+          ← Back to settings
+        </Link>
+      </div>
+    );
+  }
 
   async function addGolfer(e: React.FormEvent) {
     e.preventDefault();

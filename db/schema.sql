@@ -98,9 +98,22 @@ CREATE TABLE golfers (
     name            TEXT        NOT NULL,
     handicap        NUMERIC(3,1),                     -- handicap index, e.g. 12.4
     ghin_id         TEXT        UNIQUE,               -- GHIN number (unique per golfer)
+    -- auth + role (see db/migrations/001_auth.sql, 002_email.sql, 003_super_admin.sql)
+    email           TEXT,                             -- login email; unique when set (see index below)
+    password_hash   TEXT,                             -- PBKDF2 hash; NULL until a password is set
+    is_admin        BOOLEAN     NOT NULL DEFAULT false, -- admins manage accounts + flags
+    is_super_admin  BOOLEAN     NOT NULL DEFAULT false, -- Tim only; implies admin, never revocable/grantable via API
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- login email is unique when set (case-insensitive)
+CREATE UNIQUE INDEX IF NOT EXISTS golfers_email_lower_key
+    ON golfers (lower(email)) WHERE email IS NOT NULL;
+
+-- at most one super admin can ever exist
+CREATE UNIQUE INDEX IF NOT EXISTS golfers_single_super_admin
+    ON golfers ((is_super_admin)) WHERE is_super_admin;
 
 -- ---------------------------------------------------------------------------
 -- rounds  (one round of golf a golfer played at a course)

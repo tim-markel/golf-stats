@@ -24,11 +24,22 @@ class GolferIn(BaseModel):
 
 class Golfer(GolferIn):
     golfer_id: int
+    is_admin: bool = False
+    is_super_admin: bool = False
+    email: Optional[str] = None
 
 
 class GolferUpdate(BaseModel):
     name: Optional[str] = None
     handicap: Optional[float] = None
+    is_admin: Optional[bool] = None
+
+
+class CredentialsUpdate(BaseModel):
+    """Admin-set login credentials for a golfer. Send either or both."""
+
+    email: Optional[str] = None
+    password: Optional[str] = None
 
 
 # --- courses (read-only here; populated by the scraper) --------------------
