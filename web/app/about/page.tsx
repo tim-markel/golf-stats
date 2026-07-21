@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import { Yellowtail } from "next/font/google";
 
 export const metadata: Metadata = { title: "About · Bogey Book" };
+
+// Same script wordmark as the header logo.
+const logoFont = Yellowtail({ weight: "400", subsets: ["latin"], display: "swap" });
 
 function Section({
   title,
@@ -29,7 +33,10 @@ export default function AboutPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">⛳ Bogey Book</h1>
+        <h1 className="flex items-center gap-2 text-3xl tracking-tight">
+          <span>⛳</span>
+          <span className={`${logoFont.className} whitespace-nowrap`}>Bogey Book</span>
+        </h1>
         <p className="mt-1 text-gray-500">
           A personal golf journal that tracks your game hole by hole — far beyond
           just a score — and turns it into stats you can actually learn from.
