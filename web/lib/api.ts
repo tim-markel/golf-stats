@@ -9,6 +9,9 @@ export interface Golfer {
   name: string;
   handicap: number | null;
   ghin_id: string | null;
+  is_admin: boolean;
+  is_super_admin: boolean;
+  email: string | null;
 }
 
 export interface Course {
@@ -401,6 +404,20 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    // Surface FastAPI's { detail } message when present.
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail || `PUT ${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 async function del(path: string): Promise<void> {
   const res = await fetch(`${API_URL}${path}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
@@ -411,8 +428,12 @@ export const api = {
   getGolfer: (id: number) => get<Golfer>(`/golfers/${id}`),
   createGolfer: (b: { name: string; handicap?: number | null; ghin_id?: string | null }) =>
     post<Golfer>("/golfers", b),
-  updateGolfer: (id: number, b: { name?: string; handicap?: number | null }) =>
-    patch<Golfer>(`/golfers/${id}`, b),
+  updateGolfer: (
+    id: number,
+    b: { name?: string; handicap?: number | null; is_admin?: boolean },
+  ) => patch<Golfer>(`/golfers/${id}`, b),
+  setCredentials: (id: number, b: { email?: string | null; password?: string }) =>
+    put<Golfer>(`/golfers/${id}/credentials`, b),
   golferStats: (id: number) => get<GolferStats>(`/golfers/${id}/stats`),
   golferSeason: (id: number) => get<SeasonStats>(`/golfers/${id}/season`),
   leaderboard: () => get<Leaderboard>("/leaderboard"),
