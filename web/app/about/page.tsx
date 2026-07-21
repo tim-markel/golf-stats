@@ -67,17 +67,17 @@ export default function AboutPage() {
       <Section title="Getting started">
         <ol className="list-decimal space-y-1.5 pl-5">
           <li>
-            Open the <span className="font-semibold">⚙ Settings</span> menu
-            (top-right) → <span className="font-semibold">Change or create golfer</span>
-            , and add yourself (name + optional handicap).
+            Open <span className="font-semibold">⚙ Settings</span> (top-right).
+            The <span className="font-semibold">Profile</span> tab is where you
+            set your name, handicap, and a login (email + password).
           </li>
           <li>
-            That golfer becomes the active golfer — the home page opens straight
-            to their stats. Use Settings to switch golfers or rename / edit a
-            handicap anytime.
+            The home page opens straight to your stats — use the{" "}
+            <span className="font-semibold">Home</span> button (top-left) to get
+            back there anytime.
           </li>
           <li>
-            From a golfer&apos;s page, tap <span className="font-semibold">+ New round</span>{" "}
+            From your golfer page, tap <span className="font-semibold">+ New round</span>{" "}
             to start logging.
           </li>
         </ol>
@@ -318,10 +318,12 @@ export default function AboutPage() {
           <li>New courses are added with the scraper; each comes with its tees, ratings, slopes, yardages, coordinates, and (when found) a tee-time link.</li>
         </ul>
         <p className="pt-1">
-          Get around with the top nav: <span className="font-semibold">New Round</span>,{" "}
+          Get around with the top nav: <span className="font-semibold">Home</span>,{" "}
+          <span className="font-semibold">New Round</span>,{" "}
           <span className="font-semibold">Practice</span>,{" "}
           <span className="font-semibold">Explore</span>, and{" "}
-          <span className="font-semibold">Leaderboard</span>.
+          <span className="font-semibold">Leaderboard</span> — or the same links
+          in the footer at the bottom of any page.
         </p>
       </Section>
     </div>

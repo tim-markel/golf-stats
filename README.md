@@ -135,6 +135,7 @@ erDiagram
         text name
         numeric handicap
         text ghin_id
+        text email "login (optional)"
     }
     rounds {
         bigint round_id PK
@@ -320,6 +321,12 @@ npm run dev                          # serves http://localhost:3000
 
 Add a course with the scraper first (so there's something to log rounds
 against), then open the app, create a golfer, and start a round.
+
+### Run both at once
+
+From the repo root, `./run.sh` starts the API (`:8000`) and the web app
+(`:3000`) together and shuts both down on Ctrl+C. Override ports with
+`API_PORT=8010 WEB_PORT=3010 ./run.sh` if either is taken.
 
 ## Roadmap
 
