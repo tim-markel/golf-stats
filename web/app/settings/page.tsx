@@ -87,7 +87,8 @@ function EyeOffIcon() {
 }
 
 export default function SettingsPage() {
-  const { active, viewer, golfers, ready, updateActive, refresh, setViewAsNormal } = useGolfer();
+  const { active, viewer, golfers, ready, updateActive, refresh, setViewAsNormal, impersonate } =
+    useGolfer();
   const [tab, setTab] = useState<Tab>("profile");
 
   if (!ready) return <p className="text-sm text-gray-500">Loading…</p>;
@@ -147,6 +148,7 @@ export default function SettingsPage() {
           viewer={viewer}
           onChange={refresh}
           onViewAsNormal={() => setViewAsNormal(true)}
+          onImpersonate={impersonate}
         />
       )}
     </div>
@@ -303,32 +305,42 @@ function ProfileTab({
   );
 }
 
-// --- Users tab: everyone; managers (admin/super admin) get the key menu -----
+// --- Users tab: managers (admin/super admin) get the key menu ---------------
 function UsersTab({
   golfers,
   viewer,
   onChange,
   onViewAsNormal,
+  onImpersonate,
 }: {
   golfers: Golfer[];
   viewer: Golfer;
   onChange: () => Promise<Golfer[]>;
   onViewAsNormal: () => void;
+  onImpersonate: (id: number) => void;
 }) {
   const canManage = isManager(viewer);
+  const [creating, setCreating] = useState(false);
 
   return (
     <div className="card p-4">
       <div className="mb-1 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Users</h2>
-        {/* Only admins/super admins may create or switch golfers. */}
         {canManage && (
-          <Link href="/golfers" className="btn-ghost">
-            🔁 Change or create golfer
-          </Link>
+          <button className="btn-ghost" onClick={() => setCreating((c) => !c)}>
+            + Create Golfer
+          </button>
         )}
       </div>
-      <p className="mb-3 text-xs text-gray-500">
+
+      {creating && (
+        <CreateGolfer
+          onCreated={onChange}
+          onClose={() => setCreating(false)}
+        />
+      )}
+
+      <p className="mb-3 mt-1 text-xs text-gray-500">
         {canManage
           ? "Use the key to manage a golfer's feature flags and login."
           : "Only admins can manage accounts."}
@@ -339,9 +351,11 @@ function UsersTab({
             key={g.golfer_id}
             g={g}
             viewer={viewer}
+            golfers={golfers}
             isYou={g.golfer_id === viewer.golfer_id}
             onChange={onChange}
             onViewAsNormal={onViewAsNormal}
+            onImpersonate={onImpersonate}
           />
         ))}
       </ul>
@@ -349,18 +363,116 @@ function UsersTab({
   );
 }
 
+// --- create a new golfer with an optional login (email + password) ----------
+function CreateGolfer({
+  onCreated,
+  onClose,
+}: {
+  onCreated: () => Promise<Golfer[]>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function create() {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const created = await api.createGolfer({ name: name.trim() });
+      if (email.trim() || password) {
+        await api.setCredentials(created.golfer_id, {
+          email: email.trim() ? email.trim() : null,
+          ...(password ? { password } : {}),
+        });
+      }
+      await onCreated();
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not create golfer");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-black/10 bg-gray-50 p-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        New golfer
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-gray-500">Name</span>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-gray-500">
+            Email <span className="font-normal text-gray-400">(optional)</span>
+          </span>
+          <input
+            className="input"
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-gray-500">
+            Password <span className="font-normal text-gray-400">(optional)</span>
+          </span>
+          <div className="relative">
+            <input
+              className="input pr-10"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700"
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+        </label>
+      </div>
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <div className="mt-3 flex gap-2">
+        <button className="btn-primary" onClick={create} disabled={saving || !name.trim()}>
+          {saving ? "Creating…" : "Create golfer"}
+        </button>
+        <button className="btn-ghost" onClick={onClose} disabled={saving}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function UserRow({
   g,
   viewer,
+  golfers,
   isYou,
   onChange,
   onViewAsNormal,
+  onImpersonate,
 }: {
   g: Golfer;
   viewer: Golfer;
+  golfers: Golfer[];
   isYou: boolean;
   onChange: () => Promise<Golfer[]>;
   onViewAsNormal: () => void;
+  onImpersonate: (id: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"menu" | "admin-change">("menu");
@@ -369,7 +481,7 @@ function UserRow({
   const canManage = isManager(viewer);
   // The super admin is untouchable except by the super admin themselves.
   const locked = g.is_super_admin && !viewer.is_super_admin;
-  // The super admin may impersonate a normal golfer from their own row.
+  // The super admin's own row gets the impersonation / normal-view controls.
   const showViewAsNormal = viewer.is_super_admin && g.golfer_id === viewer.golfer_id;
 
   async function toggleAdmin() {
@@ -397,9 +509,16 @@ function UserRow({
         </div>
         <div className="flex items-center gap-3">
           {showViewAsNormal && (
-            <button onClick={onViewAsNormal} className="btn-ghost px-2.5 py-1 text-xs">
-              View as Normal
-            </button>
+            <>
+              <button onClick={onViewAsNormal} className="btn-ghost px-2.5 py-1 text-xs">
+                View as Normal
+              </button>
+              <ImpersonateMenu
+                golfers={golfers}
+                selfId={g.golfer_id}
+                onImpersonate={onImpersonate}
+              />
+            </>
           )}
           <RoleBadge g={g} />
           {canManage && !locked && (
@@ -484,6 +603,75 @@ function UserRow({
         </div>
       )}
     </li>
+  );
+}
+
+// --- super admin: pick a golfer to impersonate (searchable dropdown) --------
+function ImpersonateMenu({
+  golfers,
+  selfId,
+  onImpersonate,
+}: {
+  golfers: Golfer[];
+  selfId: number;
+  onImpersonate: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+
+  const matches = golfers
+    .filter((g) => g.golfer_id !== selfId)
+    .filter((g) => g.name.toLowerCase().includes(q.trim().toLowerCase()));
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => {
+          setOpen((o) => !o);
+          setQ("");
+        }}
+        aria-expanded={open}
+        className="btn-ghost px-2.5 py-1 text-xs"
+      >
+        Impersonate Golfer
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-black/10 bg-white text-gray-900 shadow-lg">
+            <div className="border-b p-2">
+              <input
+                autoFocus
+                className="input"
+                placeholder="Search golfers…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+            <ul className="max-h-64 overflow-auto py-1">
+              {matches.map((g) => (
+                <li key={g.golfer_id}>
+                  <button
+                    onClick={() => {
+                      onImpersonate(g.golfer_id);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-fairway-light"
+                  >
+                    <span className="truncate">{g.name}</span>
+                    <span className="shrink-0 text-xs text-gray-400">{roleLabel(g)}</span>
+                  </button>
+                </li>
+              ))}
+              {matches.length === 0 && (
+                <li className="px-3 py-2 text-sm text-gray-400">No matches</li>
+              )}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
