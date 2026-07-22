@@ -1,12 +1,14 @@
 """Beer catalog: list popular/saved beers and add new ones."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from ..db import pool
+from ..auth import current_account
 from ..schemas import Beer, BeerCreate
 
-router = APIRouter(prefix="/beers", tags=["beers"])
+# Shared beer catalog; login required (any golfer may add via "Other").
+router = APIRouter(prefix="/beers", tags=["beers"], dependencies=[Depends(current_account)])
 
 
 @router.get("", response_model=list[Beer])

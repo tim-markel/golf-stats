@@ -1,12 +1,26 @@
 """Practice sessions: range / putting / chipping logging for the dashboard."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import pool
+from ..auth import acting_golfer, is_manager
 from ..schemas import PracticeSession, PracticeSessionIn, PracticeSessionUpdate
 
-router = APIRouter(prefix="/practice", tags=["practice"])
+# Login required on all practice routes (read-shared, write-scoped).
+router = APIRouter(prefix="/practice", tags=["practice"], dependencies=[Depends(acting_golfer)])
+
+
+def _assert_can_edit_session(conn, session_id: int, actor: dict[str, Any]) -> None:
+    row = conn.execute(
+        "SELECT golfer_id FROM practice_sessions WHERE id = %s", (session_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(404, "Practice session not found")
+    if row["golfer_id"] != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only edit your own practice sessions")
 
 
 def _row_to_session(row) -> dict:
@@ -35,7 +49,9 @@ def _row_to_session(row) -> dict:
 
 
 @router.post("", response_model=PracticeSession, status_code=201)
-def create_practice(body: PracticeSessionIn):
+def create_practice(body: PracticeSessionIn, actor: dict[str, Any] = Depends(acting_golfer)):
+    if body.golfer_id != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only log practice for yourself")
     with pool.connection() as conn:
         if conn.execute(
             "SELECT 1 FROM golfers WHERE golfer_id = %s", (body.golfer_id,)
@@ -86,8 +102,11 @@ def get_practice(session_id: int):
 
 
 @router.patch("/{session_id}", response_model=PracticeSession)
-def update_practice(session_id: int, body: PracticeSessionUpdate):
+def update_practice(
+    session_id: int, body: PracticeSessionUpdate, actor: dict[str, Any] = Depends(acting_golfer)
+):
     with pool.connection() as conn:
+        _assert_can_edit_session(conn, session_id, actor)
         with conn.transaction():
             row = conn.execute(
                 """
@@ -115,12 +134,8 @@ def update_practice(session_id: int, body: PracticeSessionUpdate):
 
 
 @router.delete("/{session_id}", status_code=204)
-def delete_practice(session_id: int):
+def delete_practice(session_id: int, actor: dict[str, Any] = Depends(acting_golfer)):
     with pool.connection() as conn:
+        _assert_can_edit_session(conn, session_id, actor)
         with conn.transaction():
-            deleted = conn.execute(
-                "DELETE FROM practice_sessions WHERE id = %s RETURNING id",
-                (session_id,),
-            ).fetchone()
-    if deleted is None:
-        raise HTTPException(404, "Practice session not found")
+            conn.execute("DELETE FROM practice_sessions WHERE id = %s", (session_id,))

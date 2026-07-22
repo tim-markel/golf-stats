@@ -3,13 +3,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from ..db import pool
+from ..auth import current_account
 from ..schemas import Leaderboard
 from ..handicap import build_rounds, handicap_index
 
-router = APIRouter(tags=["leaderboard"])
+# Read-shared: any logged-in golfer may view the leaderboard.
+router = APIRouter(tags=["leaderboard"], dependencies=[Depends(current_account)])
 
 
 @router.get("/leaderboard", response_model=Leaderboard)

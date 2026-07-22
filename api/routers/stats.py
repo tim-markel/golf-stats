@@ -3,24 +3,27 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from typing import Any
+
+from ..auth import acting_golfer, current_account
 from ..db import pool
+from ..golfers_repo import load_golfer, public_golfer
 from ..handicap import build_rounds, handicap_index
 from ..schemas import GolferStats, SeasonStats
 
-router = APIRouter(prefix="/golfers", tags=["stats"])
+# Read-shared: any logged-in golfer may view stats.
+router = APIRouter(prefix="/golfers", tags=["stats"], dependencies=[Depends(current_account)])
 
 
 @router.get("/{golfer_id}/stats", response_model=GolferStats)
-def golfer_stats(golfer_id: int):
+def golfer_stats(golfer_id: int, viewer: dict[str, Any] = Depends(acting_golfer)):
     with pool.connection() as conn:
-        golfer = conn.execute(
-            "SELECT golfer_id, name, handicap, ghin_id FROM golfers WHERE golfer_id = %s",
-            (golfer_id,),
-        ).fetchone()
+        golfer = load_golfer(conn, golfer_id)
         if golfer is None:
             raise HTTPException(404, "Golfer not found")
+        golfer = public_golfer(golfer, viewer)
 
         # Per-round summaries (round_stats view joined with round/course meta).
         rounds = conn.execute(

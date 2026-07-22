@@ -378,49 +378,69 @@ export const PRACTICE_ACTIVITIES = ["range", "putting", "chipping"] as const;
 export type PracticeActivityKey = (typeof PRACTICE_ACTIVITIES)[number];
 
 // --- fetch helpers ---------------------------------------------------------
+// Auth headers read from localStorage: the session token, plus the impersonation
+// target when a super admin is acting as another golfer (server validates both).
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const headers: Record<string, string> = {};
+  const token = localStorage.getItem("bb_token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const impersonate = localStorage.getItem("impersonatedGolferId");
+  if (impersonate) headers["X-Impersonate-Golfer-Id"] = impersonate;
+  return headers;
+}
+
+// Pull FastAPI's { detail } message out of an error response when present.
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+  const detail = await res.json().catch(() => null);
+  return detail?.detail || fallback;
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  const res = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, `GET ${path} failed: ${res.status}`));
   return res.json();
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
+  if (!res.ok) throw new Error(await errorMessage(res, `POST ${path} failed: ${res.status}`));
   return res.json();
 }
 
 async function patch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status}`);
+  if (!res.ok) throw new Error(await errorMessage(res, `PATCH ${path} failed: ${res.status}`));
   return res.json();
 }
 
 async function put<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    // Surface FastAPI's { detail } message when present.
-    const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail || `PUT ${path} failed: ${res.status}`);
-  }
+  if (!res.ok) throw new Error(await errorMessage(res, `PUT ${path} failed: ${res.status}`));
   return res.json();
 }
 
 async function del(path: string): Promise<void> {
-  const res = await fetch(`${API_URL}${path}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "DELETE",
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, `DELETE ${path} failed: ${res.status}`));
 }
 
 // --- auth ------------------------------------------------------------------

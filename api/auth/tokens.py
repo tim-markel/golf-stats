@@ -1,11 +1,8 @@
-"""Auth helpers: password hashing + stateless session tokens (stdlib only).
+"""Stateless signed tokens (session + password-reset) and bearer parsing.
 
-Password hash stored in golfers.password_hash:
-    pbkdf2_sha256$<iterations>$<b64 salt>$<b64 hash>
-
-Session token (returned on login/signup, sent as ``Authorization: Bearer``):
+Token format (sent as ``Authorization: Bearer``):
     <b64url payload>.<b64url hmac-sha256(secret, payload)>
-where payload is JSON ``{"gid": <golfer_id>, "exp": <unix seconds>}``.
+payload is JSON ``{"gid": <golfer_id>, "exp": <unix seconds>[, "typ": "reset"]}``.
 """
 from __future__ import annotations
 
@@ -16,40 +13,18 @@ import json
 import os
 import time
 
-_ALGO = "pbkdf2_sha256"
-_ITERATIONS = 200_000
-
-# Signing secret for session tokens. Override in production via env.
-_SECRET = os.environ.get("AUTH_SECRET", "dev-insecure-secret-change-me").encode()
-_TOKEN_TTL = 60 * 60 * 24 * 30  # 30 days
-
-
-def hash_password(password: str) -> str:
-    salt = os.urandom(16)
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, _ITERATIONS)
-    return "${}${}${}${}".format(
-        _ALGO,
-        _ITERATIONS,
-        base64.b64encode(salt).decode(),
-        base64.b64encode(dk).decode(),
-    ).lstrip("$")
-
-
-def verify_password(password: str, stored: str | None) -> bool:
-    if not stored:
-        return False
-    try:
-        algo, iterations, salt_b64, hash_b64 = stored.split("$")
-        if algo != _ALGO:
-            return False
-        salt = base64.b64decode(salt_b64)
-        expected = base64.b64decode(hash_b64)
-        dk = hashlib.pbkdf2_hmac(
-            "sha256", password.encode(), salt, int(iterations)
+# Signing secret. Required in production; a dev-only fallback is used otherwise
+# so local runs work without setup, but never silently in production.
+_secret = os.environ.get("AUTH_SECRET")
+if not _secret:
+    if os.environ.get("APP_ENV", "").lower() == "production":
+        raise RuntimeError(
+            "AUTH_SECRET must be set in production (tokens would be forgeable)."
         )
-        return hmac.compare_digest(dk, expected)
-    except (ValueError, TypeError):
-        return False
+    _secret = "dev-insecure-secret-change-me"
+_SECRET = _secret.encode()
+_TOKEN_TTL = 60 * 60 * 24 * 30  # session tokens: 30 days
+_RESET_TTL = 60 * 60  # password-reset tokens: 1 hour
 
 
 def _b64url(raw: bytes) -> str:
@@ -58,9 +33,6 @@ def _b64url(raw: bytes) -> str:
 
 def _b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
-
-
-_RESET_TTL = 60 * 60  # password-reset links last 1 hour
 
 
 def _sign(golfer_id: int, ttl: int, typ: str | None = None) -> str:
@@ -112,4 +84,11 @@ def verify_reset_token(token: str | None) -> int | None:
     data = _decode(token)
     if data and data.get("typ") == "reset":
         return int(data["gid"])
+    return None
+
+
+def bearer_token(authorization: str | None) -> str | None:
+    """Extract the token from an ``Authorization: Bearer <token>`` header."""
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
     return None
