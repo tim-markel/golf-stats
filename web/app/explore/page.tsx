@@ -105,7 +105,7 @@ export default function ExplorePage() {
   // where the map looks: selected course > user location > all-course average
   const view = useMemo<{ center: [number, number]; zoom: number }>(() => {
     const sel = mapped.find((c) => c.id === selectedId);
-    if (sel) return { center: [sel.latitude!, sel.longitude!], zoom: 13 };
+    if (sel) return { center: [sel.latitude!, sel.longitude!], zoom: 15 };
     if (userPos) return { center: userPos, zoom: 10 };
     if (mapped.length) {
       const lat = mapped.reduce((s, c) => s + (c.latitude as number), 0) / mapped.length;
