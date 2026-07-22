@@ -1,13 +1,17 @@
 """Golfer CRUD (create + list/read)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import hash_password
 from ..db import pool
+from ..deps import acting_golfer, is_manager, require_admin
 from ..schemas import CredentialsUpdate, Golfer, GolferIn, GolferUpdate
 
-router = APIRouter(prefix="/golfers", tags=["golfers"])
+# Login required on all golfer routes; writes are admin/self-gated per endpoint.
+router = APIRouter(prefix="/golfers", tags=["golfers"], dependencies=[Depends(acting_golfer)])
 
 _GOLFER_COLS = "golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email"
 
@@ -22,7 +26,7 @@ def list_golfers():
 
 
 @router.post("", response_model=Golfer, status_code=201)
-def create_golfer(body: GolferIn):
+def create_golfer(body: GolferIn, _admin: dict[str, Any] = Depends(require_admin)):
     with pool.connection() as conn:
         row = conn.execute(
             """
@@ -36,9 +40,17 @@ def create_golfer(body: GolferIn):
 
 
 @router.patch("/{golfer_id}", response_model=Golfer)
-def update_golfer(golfer_id: int, body: GolferUpdate):
+def update_golfer(
+    golfer_id: int, body: GolferUpdate, actor: dict[str, Any] = Depends(acting_golfer)
+):
+    # You may edit your own profile; only admins may edit others.
+    if golfer_id != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only edit your own profile")
     # Only update the fields the client actually sent.
     fields = body.model_dump(exclude_unset=True)
+    # Only admins may change the admin flag (prevents self-escalation).
+    if fields.get("is_admin") is not None and not is_manager(actor):
+        raise HTTPException(403, "Only admins can change roles")
     with pool.connection() as conn:
         # The super admin can never be demoted to a non-admin.
         if fields.get("is_admin") is False:
@@ -78,12 +90,12 @@ def get_golfer(golfer_id: int):
 
 
 @router.put("/{golfer_id}/credentials", response_model=Golfer)
-def set_credentials(golfer_id: int, body: CredentialsUpdate):
-    """Admin-set a golfer's login email and/or password.
-
-    NOTE: server-side admin enforcement lands with the login slice; for now the
-    UI only exposes this to admins.
-    """
+def set_credentials(
+    golfer_id: int, body: CredentialsUpdate, actor: dict[str, Any] = Depends(acting_golfer)
+):
+    """Set a golfer's login email and/or password. Self or admin only."""
+    if golfer_id != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only change your own login")
     fields = body.model_dump(exclude_unset=True)
     sets: list[str] = []
     values: list[object] = []

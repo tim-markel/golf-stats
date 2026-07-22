@@ -1,12 +1,14 @@
 """Course read endpoints (courses are written by the scraper, not here)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import pool
+from ..deps import current_account
 from ..schemas import Course, CourseDetail
 
-router = APIRouter(prefix="/courses", tags=["courses"])
+# Read-shared reference data; login required.
+router = APIRouter(prefix="/courses", tags=["courses"], dependencies=[Depends(current_account)])
 
 
 @router.get("", response_model=list[Course])

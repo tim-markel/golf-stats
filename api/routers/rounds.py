@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import pool
+from ..deps import acting_golfer, is_manager
 from ..schemas import (
     HoleStatEdit,
     RoundCreated,
@@ -15,11 +18,26 @@ from ..schemas import (
     RoundScoresUpdate,
 )
 
-router = APIRouter(prefix="/rounds", tags=["rounds"])
+# All round routes require a login (read-shared, write-scoped).
+router = APIRouter(prefix="/rounds", tags=["rounds"], dependencies=[Depends(acting_golfer)])
+
+
+def _assert_can_edit(conn, round_id: int, actor: dict[str, Any]) -> None:
+    """404 if the round is missing, 403 unless the actor owns it or is an admin."""
+    row = conn.execute(
+        "SELECT golfer_id FROM rounds WHERE round_id = %s", (round_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(404, "Round not found")
+    if row["golfer_id"] != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only edit your own rounds")
 
 
 @router.post("", response_model=RoundCreated, status_code=201)
-def create_round(body: RoundIn):
+def create_round(body: RoundIn, actor: dict[str, Any] = Depends(acting_golfer)):
+    # You may only log rounds for yourself; admins may log for anyone.
+    if body.golfer_id != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only log rounds for yourself")
     with pool.connection() as conn:
         with conn.transaction():
             round_row = conn.execute(
@@ -252,9 +270,12 @@ def get_round(round_id: int):
 
 
 @router.patch("/{round_id}", response_model=RoundDetail)
-def update_round_meta(round_id: int, body: RoundMetaUpdate):
+def update_round_meta(
+    round_id: int, body: RoundMetaUpdate, actor: dict[str, Any] = Depends(acting_golfer)
+):
     """Edit round details: date played, tee set, and time of day."""
     with pool.connection() as conn:
+        _assert_can_edit(conn, round_id, actor)
         rnd = conn.execute(
             "SELECT course_id FROM rounds WHERE round_id = %s", (round_id,)
         ).fetchone()
@@ -282,13 +303,12 @@ def update_round_meta(round_id: int, body: RoundMetaUpdate):
 
 
 @router.patch("/{round_id}/hole-stats", response_model=RoundDetail)
-def update_hole_stats(round_id: int, body: RoundScoresUpdate):
+def update_hole_stats(
+    round_id: int, body: RoundScoresUpdate, actor: dict[str, Any] = Depends(acting_golfer)
+):
     """Edit the scorecard: update score/putts for holes in an existing round."""
     with pool.connection() as conn:
-        if conn.execute(
-            "SELECT 1 FROM rounds WHERE round_id = %s", (round_id,)
-        ).fetchone() is None:
-            raise HTTPException(404, "Round not found")
+        _assert_can_edit(conn, round_id, actor)
         with conn.transaction():
             for h in body.holes:
                 conn.execute(
@@ -300,10 +320,16 @@ def update_hole_stats(round_id: int, body: RoundScoresUpdate):
 
 
 @router.patch("/{round_id}/holes/{hole_id}", response_model=RoundDetail)
-def update_hole_stat(round_id: int, hole_id: int, body: HoleStatEdit):
+def update_hole_stat(
+    round_id: int,
+    hole_id: int,
+    body: HoleStatEdit,
+    actor: dict[str, Any] = Depends(acting_golfer),
+):
     """Edit one hole's full stats. The consumption lists fully replace the
     hole's existing beer/nicotine/weed rows."""
     with pool.connection() as conn:
+        _assert_can_edit(conn, round_id, actor)
         row = conn.execute(
             "SELECT id FROM hole_stats WHERE round_id = %s AND hole_id = %s",
             (round_id, hole_id),

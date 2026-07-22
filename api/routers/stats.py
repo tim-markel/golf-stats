@@ -3,13 +3,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import pool
+from ..deps import current_account
 from ..handicap import build_rounds, handicap_index
 from ..schemas import GolferStats, SeasonStats
 
-router = APIRouter(prefix="/golfers", tags=["stats"])
+# Read-shared: any logged-in golfer may view stats.
+router = APIRouter(prefix="/golfers", tags=["stats"], dependencies=[Depends(current_account)])
 
 
 @router.get("/{golfer_id}/stats", response_model=GolferStats)
