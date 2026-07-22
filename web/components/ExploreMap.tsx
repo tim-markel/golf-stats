@@ -31,11 +31,11 @@ const userPin = L.divIcon({
   iconAnchor: [7, 7],
 });
 
-// Recenter/zoom the map when the target view changes.
+// Smoothly fly the map to the target view (zoom into the selected course).
 function Recenter({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom);
+    map.flyTo(center, zoom, { duration: 0.8 });
   }, [map, center, zoom]);
   return null;
 }
