@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
 
 from ..db import pool
 from ..email import send_password_reset_email, send_welcome_email
 from ..golfers_repo import GOLFER_COLS, load_golfer
+from ..ratelimit import limiter
 from ..schemas import (
     AuthResult,
     Golfer,
@@ -16,7 +17,7 @@ from ..schemas import (
     PasswordResetRequest,
     SignupIn,
 )
-from .passwords import hash_password, verify_password
+from .passwords import MIN_PASSWORD_LENGTH, hash_password, verify_password
 from .tokens import bearer_token, create_reset_token, create_token, verify_reset_token, verify_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -25,11 +26,14 @@ _FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 
 @router.post("/signup", response_model=AuthResult, status_code=201)
-def signup(body: SignupIn):
+@limiter.limit("5/minute")
+def signup(request: Request, body: SignupIn):
     name = body.name.strip()
     email = body.email.strip().lower()
     if not name or not email or not body.password:
         raise HTTPException(400, "Name, email, and password are required")
+    if len(body.password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(400, f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
 
     password_hash = hash_password(body.password)
     with pool.connection() as conn:
@@ -50,7 +54,8 @@ def signup(body: SignupIn):
 
 
 @router.post("/login", response_model=AuthResult)
-def login(body: LoginIn):
+@limiter.limit("10/minute")
+def login(request: Request, body: LoginIn):
     email = body.email.strip().lower()
     with pool.connection() as conn:
         row = conn.execute(
@@ -64,7 +69,8 @@ def login(body: LoginIn):
 
 
 @router.post("/request-password-reset")
-def request_password_reset(body: PasswordResetRequest):
+@limiter.limit("5/minute")
+def request_password_reset(request: Request, body: PasswordResetRequest):
     """Email a reset link. 404s if no account has that email."""
     email = body.email.strip().lower()
     row = None
@@ -82,12 +88,13 @@ def request_password_reset(body: PasswordResetRequest):
 
 
 @router.post("/reset-password", response_model=AuthResult)
-def reset_password(body: PasswordReset):
+@limiter.limit("10/minute")
+def reset_password(request: Request, body: PasswordReset):
     gid = verify_reset_token(body.token)
     if gid is None:
         raise HTTPException(400, "This reset link is invalid or has expired")
-    if not body.password:
-        raise HTTPException(400, "Password cannot be empty")
+    if len(body.password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(400, f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
     with pool.connection() as conn:
         row = conn.execute(
             f"UPDATE golfers SET password_hash = %s WHERE golfer_id = %s RETURNING {GOLFER_COLS}",

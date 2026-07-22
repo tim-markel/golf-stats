@@ -5,9 +5,11 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import current_account
+from typing import Any
+
+from ..auth import acting_golfer, current_account
 from ..db import pool
-from ..golfers_repo import load_golfer
+from ..golfers_repo import load_golfer, public_golfer
 from ..handicap import build_rounds, handicap_index
 from ..schemas import GolferStats, SeasonStats
 
@@ -16,11 +18,12 @@ router = APIRouter(prefix="/golfers", tags=["stats"], dependencies=[Depends(curr
 
 
 @router.get("/{golfer_id}/stats", response_model=GolferStats)
-def golfer_stats(golfer_id: int):
+def golfer_stats(golfer_id: int, viewer: dict[str, Any] = Depends(acting_golfer)):
     with pool.connection() as conn:
         golfer = load_golfer(conn, golfer_id)
         if golfer is None:
             raise HTTPException(404, "Golfer not found")
+        golfer = public_golfer(golfer, viewer)
 
         # Per-round summaries (round_stats view joined with round/course meta).
         rounds = conn.execute(

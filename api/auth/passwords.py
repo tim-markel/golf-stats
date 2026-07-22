@@ -13,6 +13,8 @@ import os
 _ALGO = "pbkdf2_sha256"
 _ITERATIONS = 200_000
 
+MIN_PASSWORD_LENGTH = 8
+
 
 def hash_password(password: str) -> str:
     salt = os.urandom(16)

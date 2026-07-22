@@ -136,17 +136,17 @@ class BeerIn(BaseModel):
 
 class HoleStatIn(BaseModel):
     hole_id: int
-    score: Optional[int] = None
-    putts: Optional[int] = None
+    score: Optional[int] = Field(None, ge=1, le=30)
+    putts: Optional[int] = Field(None, ge=0, le=20)
     driving_accuracy: Optional[DrivingAccuracy] = None
     gir: Optional[bool] = None
     approach_accuracy: Optional[ApproachAccuracy] = None
     up_and_down: Optional[bool] = None
     penalty_locations: list[PenaltyStroke] = Field(default_factory=list)
-    penalty_strokes: int = 0
+    penalty_strokes: int = Field(0, ge=0, le=20)
     hazards_hit: list[Hazard] = Field(default_factory=list)
-    balls_lost: int = 0
-    hotdogs: int = 0
+    balls_lost: int = Field(0, ge=0, le=20)
+    hotdogs: int = Field(0, ge=0, le=50)
     nicotine: list[NicotineIn] = Field(default_factory=list)
     weed: list[WeedIn] = Field(default_factory=list)
     beers: list[BeerIn] = Field(default_factory=list)
@@ -353,8 +353,8 @@ class ScorecardHole(BaseModel):
 
 class HoleScoreUpdate(BaseModel):
     hole_id: int
-    score: Optional[int] = None
-    putts: Optional[int] = None
+    score: Optional[int] = Field(None, ge=1, le=30)
+    putts: Optional[int] = Field(None, ge=0, le=20)
 
 
 class RoundScoresUpdate(BaseModel):
@@ -371,17 +371,17 @@ class HoleStatEdit(BaseModel):
     """Edit a single hole's stats, including its consumption. The consumption
     lists fully replace the hole's existing beer/nicotine/weed rows."""
 
-    score: Optional[int] = None
-    putts: Optional[int] = None
+    score: Optional[int] = Field(None, ge=1, le=30)
+    putts: Optional[int] = Field(None, ge=0, le=20)
     driving_accuracy: Optional[DrivingAccuracy] = None
     gir: Optional[bool] = None
     approach_accuracy: Optional[ApproachAccuracy] = None
     up_and_down: Optional[bool] = None
     penalty_locations: list[PenaltyStroke] = Field(default_factory=list)
-    penalty_strokes: int = 0
+    penalty_strokes: int = Field(0, ge=0, le=20)
     hazards_hit: list[Hazard] = Field(default_factory=list)
-    balls_lost: int = 0
-    hotdogs: int = 0
+    balls_lost: int = Field(0, ge=0, le=20)
+    hotdogs: int = Field(0, ge=0, le=50)
     nicotine: list[NicotineIn] = Field(default_factory=list)
     weed: list[WeedIn] = Field(default_factory=list)
     beers: list[BeerIn] = Field(default_factory=list)

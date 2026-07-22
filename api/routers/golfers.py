@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import psycopg
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import acting_golfer, hash_password, is_manager, require_admin
+from ..auth import MIN_PASSWORD_LENGTH, acting_golfer, hash_password, is_manager, require_admin
 from ..db import pool
-from ..golfers_repo import GOLFER_COLS, load_golfer
+from ..golfers_repo import GOLFER_COLS, load_golfer, public_golfer
 from ..schemas import CredentialsUpdate, Golfer, GolferIn, GolferUpdate
 
 # Login required on all golfer routes; writes are admin/self-gated per endpoint.
@@ -15,12 +16,13 @@ router = APIRouter(prefix="/golfers", tags=["golfers"], dependencies=[Depends(ac
 
 
 @router.get("", response_model=list[Golfer])
-def list_golfers():
+def list_golfers(actor: dict[str, Any] = Depends(acting_golfer)):
     with pool.connection() as conn:
         rows = conn.execute(
             f"SELECT {GOLFER_COLS} FROM golfers ORDER BY name"
         ).fetchall()
-    return rows
+    # Hide other golfers' emails from non-admins.
+    return [public_golfer(r, actor) for r in rows]
 
 
 @router.post("", response_model=Golfer, status_code=201)
@@ -70,12 +72,12 @@ def update_golfer(
 
 
 @router.get("/{golfer_id}", response_model=Golfer)
-def get_golfer(golfer_id: int):
+def get_golfer(golfer_id: int, actor: dict[str, Any] = Depends(acting_golfer)):
     with pool.connection() as conn:
         row = load_golfer(conn, golfer_id)
     if row is None:
         raise HTTPException(404, "Golfer not found")
-    return row
+    return public_golfer(row, actor)
 
 
 @router.put("/{golfer_id}/credentials", response_model=Golfer)
@@ -94,8 +96,10 @@ def set_credentials(
         values.append(email.strip() if isinstance(email, str) and email.strip() else None)
     if "password" in fields:
         password = fields["password"]
-        if not password:
-            raise HTTPException(400, "Password cannot be empty")
+        if not password or len(password) < MIN_PASSWORD_LENGTH:
+            raise HTTPException(
+                400, f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+            )
         sets.append("password_hash = %s")
         values.append(hash_password(password))
 
@@ -110,7 +114,7 @@ def set_credentials(
                 f"RETURNING {GOLFER_COLS}",
                 tuple(values),
             ).fetchone()
-        except Exception as exc:  # e.g. duplicate email
+        except psycopg.errors.UniqueViolation as exc:
             raise HTTPException(409, "That email is already in use") from exc
     if row is None:
         raise HTTPException(404, "Golfer not found")

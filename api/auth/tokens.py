@@ -13,8 +13,16 @@ import json
 import os
 import time
 
-# Signing secret. Override in production via env.
-_SECRET = os.environ.get("AUTH_SECRET", "dev-insecure-secret-change-me").encode()
+# Signing secret. Required in production; a dev-only fallback is used otherwise
+# so local runs work without setup, but never silently in production.
+_secret = os.environ.get("AUTH_SECRET")
+if not _secret:
+    if os.environ.get("APP_ENV", "").lower() == "production":
+        raise RuntimeError(
+            "AUTH_SECRET must be set in production (tokens would be forgeable)."
+        )
+    _secret = "dev-insecure-secret-change-me"
+_SECRET = _secret.encode()
 _TOKEN_TTL = 60 * 60 * 24 * 30  # session tokens: 30 days
 _RESET_TTL = 60 * 60  # password-reset tokens: 1 hour
 
