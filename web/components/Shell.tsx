@@ -32,10 +32,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return <div className="p-8 text-sm text-gray-500">Loading…</div>;
   }
 
-  // Login / signup render bare (no app chrome), centered. The login page sits
-  // on a green field; the card stays white.
+  // Login / signup render bare (no app chrome), centered on a green field; the
+  // card stays white.
   if (isAuthRoute) {
-    const bg = pathname === "/login" ? "bg-gradient-to-br from-fairway-dark to-fairway" : "";
+    const bg =
+      pathname === "/login" || pathname === "/signup"
+        ? "bg-gradient-to-br from-fairway-dark to-fairway"
+        : "";
     return (
       <main className={`flex flex-1 items-center justify-center p-4 ${bg}`}>{children}</main>
     );
