@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api, Course, CourseDetail } from "@/lib/api";
+import Combobox from "@/components/Combobox";
 
 // Leaflet is client-only — load the map without SSR.
 const ExploreMap = dynamic(() => import("@/components/ExploreMap"), {
@@ -34,6 +35,25 @@ export default function ExplorePage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<CourseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Add a missing course via the web scraper.
+  const [scraping, setScraping] = useState(false);
+  const [scrapeErr, setScrapeErr] = useState<string | null>(null);
+
+  async function addCourse(name: string) {
+    if (name.trim().length < 2 || scraping) return;
+    setScraping(true);
+    setScrapeErr(null);
+    try {
+      const created = await api.scrapeCourse(name.trim());
+      setCourses(await api.listCourses());
+      setSelectedId(created.id); // focus the map on the new course
+    } catch (err) {
+      setScrapeErr(err instanceof Error ? err.message : "Could not add that course.");
+    } finally {
+      setScraping(false);
+    }
+  }
 
   useEffect(() => {
     api
@@ -118,6 +138,37 @@ export default function ExplorePage() {
         />
       </div>
 
+      <div className="card p-4">
+        <label className="mb-1 block text-sm font-medium">Find or add a course</label>
+        <Combobox
+          value={selectedId != null ? String(selectedId) : null}
+          onChange={(v) => setSelectedId(Number(v))}
+          placeholder="Search courses…"
+          options={courses.map((c) => ({
+            value: String(c.id),
+            label: c.name,
+            sublabel: [
+              [c.city, c.state].filter(Boolean).join(", "),
+              `${c.holes_count} holes`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          }))}
+          onAddNew={addCourse}
+          addNewHint="Not in the list? Include the city and state (e.g. “Lansing, MI”), and the specific course if the facility has more than one."
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          Don’t see your course? Type its name — with city and state — to add it
+          via web search.
+        </p>
+        {scraping && (
+          <p className="mt-2 text-sm text-gray-500">
+            🔎 Searching the web and adding the course… this can take up to a minute.
+          </p>
+        )}
+        {scrapeErr && <p className="mt-2 text-sm text-red-600">{scrapeErr}</p>}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         {/* course list */}
         <section className="card">
@@ -134,7 +185,12 @@ export default function ExplorePage() {
                   <span>
                     <span className="font-medium">{c.name}</span>
                     <span className="block text-xs text-gray-500">
-                      {[c.city, `${c.holes_count} holes`].filter(Boolean).join(" · ")}
+                      {[
+                        [c.city, c.state].filter(Boolean).join(", "),
+                        `${c.holes_count} holes`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </span>
                   {dist != null && (
@@ -158,7 +214,7 @@ export default function ExplorePage() {
               <div>
                 <h2 className="text-lg font-bold tracking-tight">{detail.name}</h2>
                 <p className="text-sm text-gray-500">
-                  {[detail.city, detail.country].filter(Boolean).join(", ")}
+                  {[detail.city, detail.state, detail.country].filter(Boolean).join(", ")}
                   {detail.par ? ` · par ${detail.par}` : ""} · {detail.holes_count} holes
                 </p>
               </div>

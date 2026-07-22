@@ -47,6 +47,11 @@ class CourseData(BaseModel):
 
     name: str = Field(description="Official course name.")
     city: Optional[str] = None
+    state: Optional[str] = Field(
+        default=None,
+        description="State/province as a 2-letter code when in the US/Canada "
+        "(e.g. 'MI', 'UT'), otherwise the region name. Null if unknown.",
+    )
     country: Optional[str] = None
     holes_count: int = Field(default=18, description="Number of holes (9, 18, 27).")
     par: Optional[int] = Field(default=None, description="Total par for the course.")

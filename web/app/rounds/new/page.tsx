@@ -176,10 +176,29 @@ export default function NewRoundPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Adding a missing course via the web scraper.
+  const [scraping, setScraping] = useState(false);
+  const [scrapeErr, setScrapeErr] = useState<string | null>(null);
+
   useEffect(() => {
     api.listCourses().then(setCourses).catch(() => {});
     api.listBeers().then(setBeerOptions).catch(() => {});
   }, []);
+
+  async function addCourse(name: string) {
+    if (scraping) return;
+    setScraping(true);
+    setScrapeErr(null);
+    try {
+      const created = await api.scrapeCourse(name);
+      setCourses(await api.listCourses());
+      setCourseId(created.id); // select the newly added course
+    } catch (e) {
+      setScrapeErr(e instanceof Error ? e.message : "Could not add that course.");
+    } finally {
+      setScraping(false);
+    }
+  }
 
   useEffect(() => {
     if (courseId == null) return;
@@ -279,11 +298,28 @@ export default function NewRoundPage() {
             options={courses.map((c) => ({
               value: String(c.id),
               label: c.name,
-              sublabel: [c.city, `${c.holes_count} holes`]
+              sublabel: [
+                [c.city, c.state].filter(Boolean).join(", "),
+                `${c.holes_count} holes`,
+              ]
                 .filter(Boolean)
                 .join(" · "),
             }))}
+            onAddNew={addCourse}
+            addNewHint="Include the city and state (e.g. “Lansing, MI”), and the specific course if the facility has more than one."
           />
+          <p className="mt-1 text-xs text-gray-400">
+            Not listed? Type it — include the city and state — and choose “Add
+            via web search”. For a facility with multiple courses, name the
+            specific one (e.g. “Mountain Dell Canyon, Salt Lake City, UT”).
+          </p>
+          {scraping && (
+            <p className="mt-2 text-sm text-gray-500">
+              🔎 Searching the web and adding the course… this can take up to a
+              minute.
+            </p>
+          )}
+          {scrapeErr && <p className="mt-2 text-sm text-red-600">{scrapeErr}</p>}
         </div>
 
         {course && (

@@ -23,6 +23,7 @@ CREATE TABLE courses (
     name            TEXT        NOT NULL,            -- "Pebble Beach Golf Links"
     -- location
     city            TEXT,
+    state           TEXT,                             -- state/region, e.g. "MI", "UT"
     country         TEXT,
     latitude        DOUBLE PRECISION,                 -- for the explore map
     longitude       DOUBLE PRECISION,
@@ -110,6 +111,10 @@ CREATE TABLE golfers (
 -- login email is unique when set (case-insensitive)
 CREATE UNIQUE INDEX IF NOT EXISTS golfers_email_lower_key
     ON golfers (lower(email)) WHERE email IS NOT NULL;
+
+-- no duplicate courses: unique on a normalized (case/dash-insensitive) name
+CREATE UNIQUE INDEX IF NOT EXISTS courses_norm_name_key
+    ON courses (lower(regexp_replace(name, '[–—]', '-', 'g')));
 
 -- at most one super admin can ever exist
 CREATE UNIQUE INDEX IF NOT EXISTS golfers_single_super_admin

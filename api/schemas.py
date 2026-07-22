@@ -79,6 +79,7 @@ class Course(BaseModel):
     id: int
     name: str
     city: Optional[str] = None
+    state: Optional[str] = None
     country: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -87,6 +88,10 @@ class Course(BaseModel):
     website: Optional[str] = None
     booking_url: Optional[str] = None
     phone: Optional[str] = None
+
+
+class CourseScrapeIn(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
 
 
 class Tee(BaseModel):

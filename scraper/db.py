@@ -1,10 +1,24 @@
 """Persist an extracted CourseData into the Postgres schema (db/schema.sql)."""
 from __future__ import annotations
 
+import re
+
 import psycopg
 
 from .geocode import geocode_course
 from .models import CourseData
+
+# Generic golf words dropped when comparing course names for duplicates, so
+# "Mountain Dell Golf Course - Canyon Course" and "Mountain Dell – Canyon"
+# match, while "… Canyon" and "… Lake" stay distinct.
+_NAME_STOPWORDS = {"golf", "course", "club", "links", "country", "the", "at", "gc", "cc"}
+
+
+def normalize_course_name(name: str | None) -> str:
+    """Lowercase, drop punctuation and generic golf words, collapse whitespace."""
+    cleaned = re.sub(r"[^a-z0-9 ]", " ", (name or "").lower())
+    tokens = [t for t in cleaned.split() if t not in _NAME_STOPWORDS]
+    return " ".join(tokens)
 
 
 def save_course(database_url: str, course: CourseData, source_urls: list[str]) -> int:
@@ -12,21 +26,30 @@ def save_course(database_url: str, course: CourseData, source_urls: list[str]) -
     data_source = "gemini+tavily"
     source_url = source_urls[0] if source_urls else None
 
-    # Best-effort geocode for the explore map (never blocks the save).
-    coords = geocode_course(course.name, course.city, course.country)
-    latitude, longitude = coords if coords else (None, None)
-
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
+            # No duplicates: if a course whose name matches after normalization
+            # already exists, reuse it instead of inserting again.
+            target = normalize_course_name(course.name)
+            if target:
+                cur.execute("SELECT id, name FROM courses")
+                for cid, existing_name in cur.fetchall():
+                    if normalize_course_name(existing_name) == target:
+                        return cid
+
+            # Best-effort geocode for the explore map (never blocks the save).
+            coords = geocode_course(course.name, course.city, course.country)
+            latitude, longitude = coords if coords else (None, None)
+
             cur.execute(
                 """
                 INSERT INTO courses (
-                    name, city, country, latitude, longitude,
+                    name, city, state, country, latitude, longitude,
                     holes_count, par, architect, year_built,
                     website, phone, booking_url,
                     data_source, source_url, scraped_at
                 ) VALUES (
-                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s, now()
@@ -34,7 +57,7 @@ def save_course(database_url: str, course: CourseData, source_urls: list[str]) -
                 RETURNING id
                 """,
                 (
-                    course.name, course.city, course.country, latitude, longitude,
+                    course.name, course.city, course.state, course.country, latitude, longitude,
                     course.holes_count, course.par, course.architect, course.year_built,
                     course.website, course.phone, course.booking_url,
                     data_source, source_url,

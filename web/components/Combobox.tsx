@@ -15,12 +15,20 @@ export default function Combobox({
   onChange,
   placeholder = "Select…",
   emptyText = "No matches",
+  onAddNew,
+  addNewLabel = (q) => `➕ Add “${q}” via web search`,
+  addNewHint,
 }: {
   options: ComboOption[];
   value: string | null;
   onChange: (value: string) => void;
   placeholder?: string;
   emptyText?: string;
+  // When provided, an "add" action appears for the typed text (e.g. to scrape
+  // a course that isn't in the list yet).
+  onAddNew?: (query: string) => void;
+  addNewLabel?: (query: string) => string;
+  addNewHint?: string; // small note under the add action (e.g. "include city & state")
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -93,10 +101,28 @@ export default function Combobox({
                 </button>
               </li>
             ))}
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !onAddNew && (
               <li className="px-3 py-3 text-sm text-gray-400">{emptyText}</li>
             )}
           </ul>
+
+          {onAddNew && query.trim().length >= 2 && (
+            <div className="border-t border-black/10 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  onAddNew(query.trim());
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-fairway hover:bg-fairway-light"
+              >
+                {addNewLabel(query.trim())}
+              </button>
+              {addNewHint && (
+                <p className="px-3 pb-1 text-xs text-gray-400">{addNewHint}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
