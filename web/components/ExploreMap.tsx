@@ -81,7 +81,11 @@ export default function ExploreMap({
         >
           <Popup>
             <div className="text-sm font-semibold">{c.name}</div>
-            {c.city && <div className="text-xs text-gray-500">{c.city}</div>}
+            {(c.city || c.state) && (
+              <div className="text-xs text-gray-500">
+                {[c.city, c.state].filter(Boolean).join(", ")}
+              </div>
+            )}
           </Popup>
         </Marker>
       ))}

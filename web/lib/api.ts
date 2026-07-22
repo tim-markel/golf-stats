@@ -18,6 +18,7 @@ export interface Course {
   id: number;
   name: string;
   city: string | null;
+  state: string | null;
   country: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -508,6 +509,8 @@ export const api = {
   leaderboard: () => get<Leaderboard>("/leaderboard"),
   listCourses: () => get<Course[]>("/courses"),
   getCourse: (id: number) => get<CourseDetail>(`/courses/${id}`),
+  // Web-search for a course and add it to the DB (slow: ~30-60s; rate-limited).
+  scrapeCourse: (name: string) => post<Course>("/courses/scrape", { name }),
   listBeers: () => get<Beer[]>("/beers"),
   createRound: (b: RoundIn) => post<{ round_id: number }>("/rounds", b),
   getRound: (id: number) => get<RoundDetail>(`/rounds/${id}`),
