@@ -9,6 +9,37 @@ menu.
 
 ---
 
+## Status — shipped so far (updated 2026-07-21)
+
+Since this plan was written, a chunk of the multi-user **foundations (§5)** and
+some polish have landed:
+
+- ✅ **Accounts + auth** — email/password **login**, **signup**, **logout**, and
+  a full **forgot/reset-password** flow. The whole app is gated behind login;
+  identity comes from a signed session token (`/auth/me`).
+- ✅ **Roles** — `normal` / `admin` / **`super_admin`** (Tim, exclusive & permanent).
+  Admins manage accounts (create golfers, set login email/password, toggle the
+  admin flag). Super admin can **View as Normal** and **Impersonate** any golfer.
+- ✅ **Transactional email** — welcome + password-reset emails via **Resend**,
+  sending from the verified **bogeybook.net** domain (dev-mode fallback to
+  `dev_emails.log`).
+- ✅ **UX polish** — Settings page (Profile / Users tabs), header account
+  dropdown, Home button, footer nav, sticky footer, script wordmark.
+- ✅ **Dev ergonomics** — `run.sh` one-command launcher.
+
+**Still open before public (the important gaps):**
+
+- ⛔ **Server-side auth enforcement** — the data endpoints (`/golfers`,
+  `/rounds`, …) still respond **without a token**; gating is client-side only.
+- ⛔ **Multi-tenancy / data scoping** — every user currently sees and can edit
+  all data; write access must be scoped to the signed-in golfer.
+- ⛔ **Deployment** — still localhost + local Postgres; needs cloud hosting,
+  managed Postgres, prod secrets, and the domain wired up.
+
+See **"Before going public — next steps"** at the bottom for the concrete plan.
+
+---
+
 ## 1. Product & feature depth (make it more useful)
 
 - **Strokes Gained** — off-the-tee / approach / around-the-green / putting. The
@@ -99,9 +130,13 @@ menu.
 
 ## 5. Foundations for multi-user (required before charging/selling)
 
-- **Accounts + auth** — email + Sign in with Apple/Google. Today it's one "active
-  golfer" with no login — the single biggest gap.
-- **Multi-tenancy** — every query scoped to a user; row-level isolation.
+- ✅ **Accounts + auth** — **done** (email/password login, signup, logout,
+  password reset). Remaining: optional **Sign in with Apple/Google** for lower
+  signup friction.
+- ⛔ **Multi-tenancy** — **not done, and now the biggest gap.** Every query still
+  returns all data and any signed-in user can edit anyone's rounds. Needs
+  server-side token enforcement + row-level scoping to the authenticated golfer
+  (decide what stays shared, e.g. the leaderboard, vs. private).
 - **Billing** — Stripe (web) + App Store IAP (native), free tier + Premium.
 - **Hosting, backups, uptime** — deploy (Vercel + Render/Fly + managed Postgres),
   automated backups, error monitoring.
@@ -149,7 +184,52 @@ menu.
 
 ---
 
-## Suggested sequence
+## Before going public — next steps
+
+The minimum to safely put this on the internet, in order. Everything else in
+this doc is post-launch.
+
+1. **Lock down the backend (auth enforcement + data scoping)** — *the blocker.*
+   - Add a `require_auth` dependency (validates the session token) to the data
+     routers so nothing responds without a valid login.
+   - Decide the data model first: **private per-user** (you only see/manage your
+     own rounds; leaderboard is opt-in/shared) vs. the current **shared social
+     pool** (everyone visible, managed by admins). This choice drives the query
+     scoping.
+   - Scope create/update/delete to the authenticated golfer; only admins act on
+     others.
+
+2. **Production hardening**
+   - Set a real **`AUTH_SECRET`** (currently a dev default — forgeable tokens).
+   - Make **CORS** origins env-driven (add the prod domain; drop localhost in
+     prod).
+   - **Rate-limit** the auth endpoints (login / signup / reset) against brute
+     force and email abuse.
+   - Env-var validation on boot; fail fast if a required secret is missing.
+
+3. **Deploy**
+   - Managed **Postgres** (Neon / Railway / Render) — migrate local data with
+     `pg_dump` → `psql`.
+   - Backend on **Railway/Render**, frontend on **Vercel**, wired to
+     **bogeybook.net** (+ `api.` subdomain) via Cloudflare DNS; HTTPS is
+     automatic.
+   - Prod env: `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `FRONTEND_URL`,
+     `AUTH_SECRET`, Resend keys.
+   - Turn on **automated DB backups**.
+
+4. **Safety UX** (small but high-value)
+   - **Confirm-on-delete** for rounds and practice (currently instant).
+   - Basic **validation** (score ≥ 1, putts sane, etc.) with inline errors.
+   - Friendly **error / empty / loading** states instead of bare "Loading…".
+
+5. **Legal minimum** (only if truly opening to strangers)
+   - A simple **privacy policy + ToS**, plus **data export + delete**.
+
+Nice-to-have alongside: a couple of **API tests** for the handicap/stats math and
+the auth flow, and **GitHub Actions CI** (lint + type-check + test) so deploys
+stay safe.
+
+## Suggested sequence (longer arc)
 
 1. **Quality pass** — tests + CI + migrations + validation + confirm-on-delete +
    error/empty/loading states. Makes everything after this safer and faster.
