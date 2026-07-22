@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import pool
-from ..deps import current_account
+from ..auth import current_account
 from ..schemas import Course, CourseDetail
 
 # Read-shared reference data; login required.

@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ..db import pool
-from ..deps import current_account
+from ..auth import current_account
 from ..schemas import Beer, BeerCreate
 
 # Shared beer catalog; login required (any golfer may add via "Other").

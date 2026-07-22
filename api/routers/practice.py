@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import pool
-from ..deps import acting_golfer, is_manager
+from ..auth import acting_golfer, is_manager
 from ..schemas import PracticeSession, PracticeSessionIn, PracticeSessionUpdate
 
 # Login required on all practice routes (read-shared, write-scoped).

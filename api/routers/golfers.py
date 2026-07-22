@@ -1,26 +1,24 @@
-"""Golfer CRUD (create + list/read)."""
+"""Golfer CRUD (create + list/read + profile/credentials updates)."""
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import hash_password
+from ..auth import acting_golfer, hash_password, is_manager, require_admin
 from ..db import pool
-from ..deps import acting_golfer, is_manager, require_admin
+from ..golfers_repo import GOLFER_COLS, load_golfer
 from ..schemas import CredentialsUpdate, Golfer, GolferIn, GolferUpdate
 
 # Login required on all golfer routes; writes are admin/self-gated per endpoint.
 router = APIRouter(prefix="/golfers", tags=["golfers"], dependencies=[Depends(acting_golfer)])
-
-_GOLFER_COLS = "golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email"
 
 
 @router.get("", response_model=list[Golfer])
 def list_golfers():
     with pool.connection() as conn:
         rows = conn.execute(
-            "SELECT golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email FROM golfers ORDER BY name"
+            f"SELECT {GOLFER_COLS} FROM golfers ORDER BY name"
         ).fetchall()
     return rows
 
@@ -29,11 +27,8 @@ def list_golfers():
 def create_golfer(body: GolferIn, _admin: dict[str, Any] = Depends(require_admin)):
     with pool.connection() as conn:
         row = conn.execute(
-            """
-            INSERT INTO golfers (name, handicap, ghin_id)
-            VALUES (%s, %s, %s)
-            RETURNING golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email
-            """,
+            f"INSERT INTO golfers (name, handicap, ghin_id) "
+            f"VALUES (%s, %s, %s) RETURNING {GOLFER_COLS}",
             (body.name, body.handicap, body.ghin_id),
         ).fetchone()
     return row
@@ -64,14 +59,11 @@ def update_golfer(
             set_clause = ", ".join(f"{k} = %s" for k in fields)
             row = conn.execute(
                 f"UPDATE golfers SET {set_clause} WHERE golfer_id = %s "
-                "RETURNING golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email",
+                f"RETURNING {GOLFER_COLS}",
                 (*fields.values(), golfer_id),
             ).fetchone()
         else:
-            row = conn.execute(
-                "SELECT golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email FROM golfers WHERE golfer_id = %s",
-                (golfer_id,),
-            ).fetchone()
+            row = load_golfer(conn, golfer_id)
     if row is None:
         raise HTTPException(404, "Golfer not found")
     return row
@@ -80,10 +72,7 @@ def update_golfer(
 @router.get("/{golfer_id}", response_model=Golfer)
 def get_golfer(golfer_id: int):
     with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT golfer_id, name, handicap, ghin_id, is_admin, is_super_admin, email FROM golfers WHERE golfer_id = %s",
-            (golfer_id,),
-        ).fetchone()
+        row = load_golfer(conn, golfer_id)
     if row is None:
         raise HTTPException(404, "Golfer not found")
     return row
@@ -118,7 +107,7 @@ def set_credentials(
         try:
             row = conn.execute(
                 f"UPDATE golfers SET {', '.join(sets)} WHERE golfer_id = %s "
-                f"RETURNING {_GOLFER_COLS}",
+                f"RETURNING {GOLFER_COLS}",
                 tuple(values),
             ).fetchone()
         except Exception as exc:  # e.g. duplicate email

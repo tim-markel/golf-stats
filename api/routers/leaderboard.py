@@ -6,7 +6,7 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends
 
 from ..db import pool
-from ..deps import current_account
+from ..auth import current_account
 from ..schemas import Leaderboard
 from ..handicap import build_rounds, handicap_index
 

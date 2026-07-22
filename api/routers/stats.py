@@ -5,8 +5,9 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from ..auth import current_account
 from ..db import pool
-from ..deps import current_account
+from ..golfers_repo import load_golfer
 from ..handicap import build_rounds, handicap_index
 from ..schemas import GolferStats, SeasonStats
 
@@ -17,10 +18,7 @@ router = APIRouter(prefix="/golfers", tags=["stats"], dependencies=[Depends(curr
 @router.get("/{golfer_id}/stats", response_model=GolferStats)
 def golfer_stats(golfer_id: int):
     with pool.connection() as conn:
-        golfer = conn.execute(
-            "SELECT golfer_id, name, handicap, ghin_id FROM golfers WHERE golfer_id = %s",
-            (golfer_id,),
-        ).fetchone()
+        golfer = load_golfer(conn, golfer_id)
         if golfer is None:
             raise HTTPException(404, "Golfer not found")
 
