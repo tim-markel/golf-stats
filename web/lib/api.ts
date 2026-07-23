@@ -323,6 +323,7 @@ export interface RoundTotals {
 
 export interface RoundDetail {
   round_id: number;
+  golfer_id: number;
   played_on: string;
   time_of_day: string | null;
   round_duration: string | null;
@@ -504,6 +505,7 @@ export const api = {
   ) => patch<Golfer>(`/golfers/${id}`, b),
   setCredentials: (id: number, b: { email?: string | null; password?: string }) =>
     put<Golfer>(`/golfers/${id}/credentials`, b),
+  deleteGolfer: (id: number) => del(`/golfers/${id}`),
   golferStats: (id: number) => get<GolferStats>(`/golfers/${id}/stats`),
   golferSeason: (id: number) => get<SeasonStats>(`/golfers/${id}/season`),
   leaderboard: () => get<Leaderboard>("/leaderboard"),

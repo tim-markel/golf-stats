@@ -119,3 +119,22 @@ def set_credentials(
     if row is None:
         raise HTTPException(404, "Golfer not found")
     return row
+
+
+@router.delete("/{golfer_id}", status_code=204)
+def delete_golfer(golfer_id: int, actor: dict[str, Any] = Depends(acting_golfer)):
+    """Permanently delete a golfer (and their rounds/practice, via cascade).
+
+    Self or admin only; the super admin can never be deleted.
+    """
+    if golfer_id != actor["golfer_id"] and not is_manager(actor):
+        raise HTTPException(403, "You can only delete your own account")
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT is_super_admin FROM golfers WHERE golfer_id = %s", (golfer_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "Golfer not found")
+        if row["is_super_admin"]:
+            raise HTTPException(403, "The super admin account can't be deleted")
+        conn.execute("DELETE FROM golfers WHERE golfer_id = %s", (golfer_id,))

@@ -23,7 +23,11 @@ router = APIRouter(prefix="/rounds", tags=["rounds"], dependencies=[Depends(acti
 
 
 def _assert_can_edit(conn, round_id: int, actor: dict[str, Any]) -> None:
-    """404 if the round is missing, 403 unless the actor owns it or is an admin."""
+    """404 if the round is missing, 403 unless the actor owns it or is an admin.
+
+    The admin bypass keys off the *acting* golfer, so an admin who is
+    impersonating a normal golfer is just that golfer and can't edit others'.
+    """
     row = conn.execute(
         "SELECT golfer_id FROM rounds WHERE round_id = %s", (round_id,)
     ).fetchone()
@@ -119,7 +123,7 @@ def get_round(round_id: int):
     with pool.connection() as conn:
         rnd = conn.execute(
             """
-            SELECT r.round_id, r.played_on, r.time_of_day,
+            SELECT r.round_id, r.golfer_id, r.played_on, r.time_of_day,
                    r.round_duration::text AS round_duration,
                    r.course_id, c.name AS course_name,
                    r.tee_id, t.name AS tee_name,

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, PRACTICE_ACTIVITIES, PracticeRating } from "@/lib/api";
+import { useGolfer } from "@/lib/golfer-context";
 import {
   ActivityForm,
   draftToActivities,
@@ -17,9 +18,11 @@ import {
 export default function PracticeSessionPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
+  const { active } = useGolfer();
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState<PracticeDraft>(emptyPracticeDraft);
   const [notes, setNotes] = useState("");
+  const [ownerId, setOwnerId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -31,6 +34,7 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
         setDate(s.practiced_on);
         setDraft(sessionToDraft(s));
         setNotes(s.notes ?? "");
+        setOwnerId(s.golfer_id);
         setLoaded(true);
       })
       .catch(() => setError("Could not load this session."));
@@ -59,6 +63,12 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
 
   if (error) return <p className="text-red-700">{error}</p>;
   if (!loaded) return <p className="text-gray-500">Loading…</p>;
+
+  // The owner — or an admin — can edit/delete it. (`active` is the effective
+  // viewer, so an admin impersonating a normal golfer can't.)
+  const canEdit =
+    active != null &&
+    (active.golfer_id === ownerId || active.is_admin || active.is_super_admin);
 
   return (
     <div className="space-y-5">
@@ -97,7 +107,8 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
         })}
       </div>
 
-      {/* editor */}
+      {/* editor — owner only */}
+      {canEdit && (
       <section className="card space-y-4 p-5">
         <h2 className="font-semibold">Edit session</h2>
         <div>
@@ -147,6 +158,7 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
           </button>
         </div>
       </section>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   weedLabel,
 } from "@/lib/api";
 import StatTotals, { StatTotalsData } from "@/components/StatTotals";
+import { useGolfer } from "@/lib/golfer-context";
 import {
   BeerEntry,
   CountChoice,
@@ -571,6 +572,7 @@ function HoleEditorModal({
 export default function RoundScorecardPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
+  const { active } = useGolfer(); // effective viewer (impersonation-aware)
   const [round, setRound] = useState<RoundDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -593,6 +595,13 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
 
   if (error) return <p className="text-red-700">{error}</p>;
   if (!round) return <p className="text-gray-500">Loading…</p>;
+
+  // Edit your own round, or any round if you're an admin. `active` is the
+  // effective viewer, so an admin impersonating a normal golfer is just that
+  // golfer here and can only edit their own.
+  const canEdit =
+    active != null &&
+    (active.golfer_id === round.golfer_id || active.is_admin || active.is_super_admin);
 
   const front = round.holes.filter((h) => h.hole_number <= 9);
   const back = round.holes.filter((h) => h.hole_number > 9);
@@ -786,9 +795,11 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
                 {round.tee_name ? ` · ${round.tee_name} tees` : ""}
                 {round.time_of_day ? ` · ${round.time_of_day}` : ""}
               </p>
-              <button onClick={startMetaEdit} className="btn-ghost px-2 py-0.5 text-xs">
-                Edit
-              </button>
+              {canEdit && (
+                <button onClick={startMetaEdit} className="btn-ghost px-2 py-0.5 text-xs">
+                  Edit
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -827,9 +838,11 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
               Done
             </button>
           ) : (
-            <button onClick={() => setEditing(true)} className="btn-ghost px-3 py-1">
-              Edit stats
-            </button>
+            canEdit && (
+              <button onClick={() => setEditing(true)} className="btn-ghost px-3 py-1">
+                Edit stats
+              </button>
+            )
           )}
         </div>
         {editing && (
