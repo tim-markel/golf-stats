@@ -3,7 +3,7 @@
 // Leaflet map for the Explore page. Client-only (Leaflet touches window), so
 // the Explore page imports this with next/dynamic { ssr: false }.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -40,6 +40,64 @@ function Recenter({ center, zoom }: { center: [number, number]; zoom: number }) 
   return null;
 }
 
+// A control button (below the +/- zoom control) that flies to your location.
+function LocateControl({
+  userPos,
+  onLocate,
+}: {
+  userPos: [number, number] | null;
+  onLocate?: (pos: [number, number]) => void;
+}) {
+  const map = useMap();
+  const posRef = useRef(userPos);
+  const onLocateRef = useRef(onLocate);
+  posRef.current = userPos;
+  onLocateRef.current = onLocate;
+
+  useEffect(() => {
+    const control = new L.Control({ position: "topleft" });
+    control.onAdd = () => {
+      const div = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+      const link = L.DomUtil.create("a", "", div) as HTMLAnchorElement;
+      link.href = "#";
+      link.title = "Center on my location";
+      link.setAttribute("role", "button");
+      link.style.cssText =
+        "display:flex;align-items:center;justify-content:center;color:#333;";
+      link.innerHTML =
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+        '<path d="M12 2 4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>';
+
+      const goTo = (pos: [number, number]) => map.flyTo(pos, 13, { duration: 0.8 });
+      L.DomEvent.on(link, "click", (e) => {
+        L.DomEvent.stop(e);
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (p) => {
+              const pos: [number, number] = [p.coords.latitude, p.coords.longitude];
+              onLocateRef.current?.(pos);
+              goTo(pos);
+            },
+            () => {
+              if (posRef.current) goTo(posRef.current); // fall back to last known
+            },
+            { enableHighAccuracy: false, timeout: 8000 }
+          );
+        } else if (posRef.current) {
+          goTo(posRef.current);
+        }
+      });
+      return div;
+    };
+    control.addTo(map);
+    return () => {
+      control.remove();
+    };
+  }, [map]);
+
+  return null;
+}
+
 export default function ExploreMap({
   courses,
   userPos,
@@ -47,6 +105,7 @@ export default function ExploreMap({
   center,
   zoom,
   onSelect,
+  onLocate,
 }: {
   courses: Course[];
   userPos: [number, number] | null;
@@ -54,6 +113,7 @@ export default function ExploreMap({
   center: [number, number];
   zoom: number;
   onSelect: (id: number) => void;
+  onLocate?: (pos: [number, number]) => void;
 }) {
   return (
     <MapContainer
@@ -63,6 +123,7 @@ export default function ExploreMap({
       className="h-full w-full"
     >
       <Recenter center={center} zoom={zoom} />
+      <LocateControl userPos={userPos} onLocate={onLocate} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

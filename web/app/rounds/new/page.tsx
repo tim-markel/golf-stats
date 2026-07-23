@@ -183,6 +183,9 @@ export default function NewRoundPage() {
   useEffect(() => {
     api.listCourses().then(setCourses).catch(() => {});
     api.listBeers().then(setBeerOptions).catch(() => {});
+    // Pre-select a course when arriving from Explore (/rounds/new?course=<id>).
+    const fromUrl = new URLSearchParams(window.location.search).get("course");
+    if (fromUrl) setCourseId(Number(fromUrl));
   }, []);
 
   async function addCourse(name: string) {

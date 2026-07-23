@@ -135,6 +135,7 @@ export default function ExplorePage() {
           center={view.center}
           zoom={view.zoom}
           onSelect={setSelectedId}
+          onLocate={setUserPos}
         />
       </div>
 
@@ -220,12 +221,18 @@ export default function ExplorePage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/rounds/new?course=${detail.id}`}
+                  className="btn-primary px-3 py-1.5 text-sm"
+                >
+                  ⛳ New Round
+                </Link>
                 {detail.booking_url && (
                   <a
                     href={detail.booking_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-primary px-3 py-1.5 text-sm"
+                    className="btn-ghost px-3 py-1.5 text-sm"
                   >
                     Book tee time ↗
                   </a>
