@@ -442,6 +442,7 @@ class PracticeSession(BaseModel):
 
 class RoundDetail(BaseModel):
     round_id: int
+    golfer_id: int
     played_on: date
     time_of_day: Optional[str] = None
     round_duration: Optional[str] = None

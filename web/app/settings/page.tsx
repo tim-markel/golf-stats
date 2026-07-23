@@ -96,6 +96,7 @@ export default function SettingsPage() {
     refresh,
     setViewAsNormal,
     impersonate,
+    logout,
   } = useGolfer();
   const [tab, setTab] = useState<Tab>("profile");
 
@@ -148,7 +149,13 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "profile" && (
-        <ProfileTab active={active} roleGolfer={viewer} onSave={updateActive} refresh={refresh} />
+        <ProfileTab
+          active={active}
+          roleGolfer={viewer}
+          onSave={updateActive}
+          refresh={refresh}
+          onDeleted={logout}
+        />
       )}
       {activeTab === "users" && canManage && (
         <UsersTab
@@ -169,11 +176,13 @@ function ProfileTab({
   roleGolfer,
   onSave,
   refresh,
+  onDeleted,
 }: {
   active: Golfer;
   roleGolfer: Golfer; // drives the role badge (reflects normal-view impersonation)
   onSave: (patch: { name?: string; handicap?: number | null }) => Promise<void>;
   refresh: () => Promise<Golfer[]>;
+  onDeleted: () => void; // called after the account is deleted (logs out)
 }) {
   const [name, setName] = useState(active.name);
   const [hcp, setHcp] = useState(active.handicap != null ? String(active.handicap) : "");
@@ -186,6 +195,9 @@ function ProfileTab({
   const [resetBusy, setResetBusy] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [resetErr, setResetErr] = useState<string | null>(null);
+
+  // Delete-account confirmation modal.
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const emailChanged = (email.trim() || null) !== (active.email || null);
   const dirty =
@@ -313,6 +325,94 @@ function ProfileTab({
           {saving ? "Saving…" : "Save changes"}
         </button>
         {saved && !dirty && <span className="text-sm text-fairway">Saved ✓</span>}
+      </div>
+
+      {/* Danger zone — the super admin account can't be deleted. */}
+      {!active.is_super_admin && (
+        <div className="mt-6 border-t border-black/5 pt-4">
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="text-sm font-medium text-red-600 underline"
+          >
+            Delete account
+          </button>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <DeleteAccountModal
+          golferId={active.golfer_id}
+          onClose={() => setConfirmDelete(false)}
+          onDeleted={onDeleted}
+        />
+      )}
+    </div>
+  );
+}
+
+// Type-to-confirm modal for permanently deleting an account.
+function DeleteAccountModal({
+  golferId,
+  onClose,
+  onDeleted,
+}: {
+  golferId: number;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const PHRASE = "permanently delete";
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const confirmed = text.trim().toLowerCase() === PHRASE;
+
+  async function doDelete() {
+    if (!confirmed || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.deleteGolfer(golferId);
+      onDeleted(); // logs out -> redirected to /login
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not delete the account");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-5 text-gray-900 shadow-lg">
+        <h3 className="text-lg font-bold text-red-600">Delete account</h3>
+        <p className="mt-2 text-sm text-gray-600">
+          This permanently deletes your account and all of your rounds and
+          practice. This can’t be undone.
+        </p>
+        <label className="mt-4 block">
+          <span className="mb-1 block text-xs font-medium text-gray-500">
+            Type <span className="font-semibold text-gray-700">permanently delete</span> to confirm
+          </span>
+          <input
+            autoFocus
+            className="input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="permanently delete"
+          />
+        </label>
+        {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={doDelete}
+            disabled={!confirmed || busy}
+            className="btn inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40"
+          >
+            {busy ? "Deleting…" : "Delete account"}
+          </button>
+          <button onClick={onClose} disabled={busy} className="btn-ghost">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
