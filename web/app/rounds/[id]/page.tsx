@@ -126,21 +126,17 @@ function scoreTerm(score: number | null, par: number): { text: string; tone: str
   return { text: `+${d}`, tone: over };
 }
 
-type Draft = Record<number, { score: string; putts: string }>;
-
 // --- one nine on the (paper) scorecard --------------------------------------
 function Nine({
   holes,
   label,
   editing,
-  draft,
-  setDraft,
+  onHoleClick,
 }: {
   holes: ScorecardHole[];
   label: string;
   editing: boolean;
-  draft: Draft;
-  setDraft: (d: Draft) => void;
+  onHoleClick: (holeId: number) => void;
 }) {
   const parSum = holes.reduce((a, h) => a + h.par, 0);
   const yardSum = holes.reduce((a, h) => a + (h.yards ?? 0), 0);
@@ -152,15 +148,16 @@ function Nine({
   const tot = "border-l-2 border-paper-line font-semibold";
   const row = "border-b border-paper-line";
 
-  function update(holeId: number, field: "score" | "putts", value: string) {
-    setDraft({ ...draft, [holeId]: { ...draft[holeId], [field]: value } });
-  }
-  const inputCls =
-    "w-9 rounded border border-paper-line bg-white px-1 py-0.5 text-center text-ink outline-none focus:border-fairway";
-
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] text-center text-sm text-ink">
+      <table className="w-full min-w-[560px] table-fixed text-center text-sm text-ink">
+        <colgroup>
+          <col className="w-20" />
+          {holes.map((h) => (
+            <col key={h.hole_id} />
+          ))}
+          <col className="w-16" />
+        </colgroup>
         <tbody>
           <tr className={`${row} text-xs font-semibold uppercase tracking-wide text-ink/70`}>
             <td className="px-2 py-1 text-left">Hole</td>
@@ -207,12 +204,14 @@ function Nine({
             {holes.map((h) => (
               <td key={h.hole_id} className={`px-1 py-1 ${div}`}>
                 {editing ? (
-                  <input
-                    value={draft[h.hole_id]?.score ?? ""}
-                    onChange={(e) => update(h.hole_id, "score", e.target.value)}
-                    inputMode="numeric"
-                    className={inputCls}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => onHoleClick(h.hole_id)}
+                    title={`Edit hole ${h.hole_number}`}
+                    className="mx-auto flex h-8 w-9 items-center justify-center rounded border border-fairway/40 bg-white hover:bg-fairway-light"
+                  >
+                    <ScoreMark score={h.score} par={h.par} />
+                  </button>
                 ) : (
                   <ScoreMark score={h.score} par={h.par} />
                 )}
@@ -236,7 +235,7 @@ function Mini({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function HoleCard({ h, onEdit }: { h: ScorecardHole; onEdit?: () => void }) {
+function HoleCard({ h }: { h: ScorecardHole }) {
   const term = scoreTerm(h.score, h.par);
   const played = h.score != null;
 
@@ -264,18 +263,7 @@ function HoleCard({ h, onEdit }: { h: ScorecardHole; onEdit?: () => void }) {
     <div className="card overflow-hidden text-ink">
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-sm">
         <span className="font-bold">Hole {h.hole_number}</span>
-        <span className="flex items-center gap-2">
-          <span className="text-gray-400">Par {h.par}</span>
-          {onEdit && (
-            <button
-              onClick={onEdit}
-              title="Edit hole stats"
-              className="text-gray-400 hover:text-fairway"
-            >
-              ✏️
-            </button>
-          )}
-        </span>
+        <span className="text-gray-400">Par {h.par}</span>
       </div>
 
       {/* number on the left, term on the right */}
@@ -340,12 +328,20 @@ function HoleEditCard({
   beerOptions,
   onSaved,
   onCancel,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
 }: {
   hole: ScorecardHole;
   roundId: number;
   beerOptions: Beer[];
   onSaved: (r: RoundDetail) => void;
   onCancel: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }) {
   const [d, setD] = useState<HoleStatEdit>({
     score: hole.score,
@@ -375,11 +371,13 @@ function HoleEditCard({
   const [saving, setSaving] = useState(false);
   const set = (p: Partial<HoleStatEdit>) => setD((prev) => ({ ...prev, ...p }));
   const showDriving = hole.par >= 4;
+  const navigable = onPrev != null || onNext != null;
 
-  async function save() {
+  async function saveAnd(after?: () => void) {
     setSaving(true);
     try {
       onSaved(await api.updateHoleStat(roundId, hole.hole_id, d));
+      after?.();
     } finally {
       setSaving(false);
     }
@@ -387,16 +385,34 @@ function HoleEditCard({
 
   return (
     <div className="card space-y-4 border-2 border-fairway p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h3 className="font-bold">
           Hole {hole.hole_number} <span className="text-gray-400">· Par {hole.par}</span>
         </h3>
-        <div className="flex gap-2">
-          <button onClick={save} disabled={saving} className="btn-primary px-3 py-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {navigable && (
+            <>
+              <button
+                onClick={() => saveAnd(onPrev)}
+                disabled={saving || !hasPrev}
+                className="btn-ghost px-2 py-1 disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              <button
+                onClick={() => saveAnd(onNext)}
+                disabled={saving || !hasNext}
+                className="btn-ghost px-2 py-1 disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </>
+          )}
+          <button onClick={() => saveAnd()} disabled={saving} className="btn-primary px-3 py-1">
             {saving ? "Saving…" : "Save"}
           </button>
           <button onClick={onCancel} className="btn-ghost px-3 py-1">
-            Cancel
+            {navigable ? "Done" : "Cancel"}
           </button>
         </div>
       </div>
@@ -509,21 +525,62 @@ function HoleEditCard({
   );
 }
 
+// Full-screen hole editor: click through holes (prev/next) and exit, like round
+// entry. Reuses HoleEditCard for the current hole.
+function HoleEditorModal({
+  round,
+  roundId,
+  startHoleId,
+  beerOptions,
+  onSaved,
+  onClose,
+}: {
+  round: RoundDetail;
+  roundId: number;
+  startHoleId: number;
+  beerOptions: Beer[];
+  onSaved: (r: RoundDetail) => void;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(() =>
+    Math.max(0, round.holes.findIndex((h) => h.hole_id === startHoleId))
+  );
+  const hole = round.holes[idx];
+  if (!hole) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+      <div className="mt-6 w-full max-w-lg">
+        <HoleEditCard
+          key={hole.hole_id}
+          hole={hole}
+          roundId={roundId}
+          beerOptions={beerOptions}
+          onSaved={onSaved}
+          onCancel={onClose}
+          onPrev={() => setIdx((i) => Math.max(0, i - 1))}
+          onNext={() => setIdx((i) => Math.min(round.holes.length - 1, i + 1))}
+          hasPrev={idx > 0}
+          hasNext={idx < round.holes.length - 1}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function RoundScorecardPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const router = useRouter();
   const [round, setRound] = useState<RoundDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<Draft>({});
-  const [saving, setSaving] = useState(false);
+  const [modalHoleId, setModalHoleId] = useState<number | null>(null);
 
   // round metadata (date / tees / time of day) editing
   const [metaEditing, setMetaEditing] = useState(false);
   const [metaSaving, setMetaSaving] = useState(false);
   const [tees, setTees] = useState<Tee[]>([]);
   const [meta, setMeta] = useState({ played_on: "", tee_id: "", time_of_day: "" });
-  const [editingHole, setEditingHole] = useState<number | null>(null);
   const [beerOptions, setBeerOptions] = useState<Beer[]>([]);
 
   useEffect(() => {
@@ -630,15 +687,6 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
     avgPutts,
   };
 
-  function startEdit() {
-    const d: Draft = {};
-    round!.holes.forEach((h) => {
-      d[h.hole_id] = { score: h.score?.toString() ?? "", putts: h.putts?.toString() ?? "" };
-    });
-    setDraft(d);
-    setEditing(true);
-  }
-
   async function startMetaEdit() {
     setMeta({
       played_on: round!.played_on,
@@ -668,22 +716,6 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       setMetaEditing(false);
     } finally {
       setMetaSaving(false);
-    }
-  }
-
-  async function saveEdit() {
-    setSaving(true);
-    try {
-      const updates = round!.holes.map((h) => ({
-        hole_id: h.hole_id,
-        score: draft[h.hole_id]?.score === "" ? null : Number(draft[h.hole_id].score),
-        putts: draft[h.hole_id]?.putts === "" ? null : Number(draft[h.hole_id].putts),
-      }));
-      const fresh = await api.updateRoundHoleStats(id, updates);
-      setRound(fresh);
-      setEditing(false);
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -755,7 +787,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
                 {round.time_of_day ? ` · ${round.time_of_day}` : ""}
               </p>
               <button onClick={startMetaEdit} className="btn-ghost px-2 py-0.5 text-xs">
-                ✏️ Edit round
+                Edit
               </button>
             </div>
           )}
@@ -791,61 +823,52 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
             )}
           </span>
           {editing ? (
-            <div className="flex gap-2">
-              <button onClick={saveEdit} disabled={saving} className="btn-primary px-3 py-1">
-                {saving ? "Saving…" : "Save"}
-              </button>
-              <button onClick={() => setEditing(false)} className="btn-ghost px-3 py-1">
-                Cancel
-              </button>
-            </div>
+            <button onClick={() => setEditing(false)} className="btn-primary px-3 py-1">
+              Done
+            </button>
           ) : (
-            <button onClick={startEdit} className="btn-ghost px-3 py-1">
-              ✏️ Edit stats
+            <button onClick={() => setEditing(true)} className="btn-ghost px-3 py-1">
+              Edit stats
             </button>
           )}
         </div>
+        {editing && (
+          <p className="px-4 pt-2 text-xs text-gray-500">
+            Tap a hole below to edit all its stats.
+          </p>
+        )}
         <div className="space-y-2 p-2">
           {front.length > 0 && (
-            <Nine holes={front} label="Out" editing={editing} draft={draft} setDraft={setDraft} />
+            <Nine holes={front} label="Out" editing={editing} onHoleClick={setModalHoleId} />
           )}
           {back.length > 0 && (
-            <Nine holes={back} label="In" editing={editing} draft={draft} setDraft={setDraft} />
+            <Nine holes={back} label="In" editing={editing} onHoleClick={setModalHoleId} />
           )}
         </div>
       </section>
 
-      {/* hole-by-hole cards: 3 per row, vertical/stacked */}
+      {/* hole-by-hole cards: read-only summary */}
       <section>
-        <h2 className="mb-1 font-semibold">Hole by hole</h2>
-        <p className="mb-2 text-xs text-gray-400">Tap ✏️ on a hole to edit its stats.</p>
+        <h2 className="mb-2 font-semibold">Hole by hole</h2>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-          {round.holes.map((h) =>
-            editingHole === h.hole_id ? (
-              <div key={h.hole_id} className="col-span-full">
-                <HoleEditCard
-                  hole={h}
-                  roundId={id}
-                  beerOptions={beerOptions}
-                  onSaved={(fresh) => {
-                    setRound(fresh);
-                    setEditingHole(null);
-                  }}
-                  onCancel={() => setEditingHole(null)}
-                />
-              </div>
-            ) : (
-              <HoleCard
-                key={h.hole_id}
-                h={h}
-                onEdit={() => setEditingHole(h.hole_id)}
-              />
-            )
-          )}
+          {round.holes.map((h) => (
+            <HoleCard key={h.hole_id} h={h} />
+          ))}
         </div>
       </section>
 
       <StatTotals title="Round totals" data={totalsData} />
+
+      {modalHoleId != null && (
+        <HoleEditorModal
+          round={round}
+          roundId={id}
+          startHoleId={modalHoleId}
+          beerOptions={beerOptions}
+          onSaved={setRound}
+          onClose={() => setModalHoleId(null)}
+        />
+      )}
     </div>
   );
 }
