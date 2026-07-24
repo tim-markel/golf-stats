@@ -26,6 +26,7 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     api
@@ -57,8 +58,13 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
   }
 
   async function remove() {
-    await api.deletePractice(id);
-    router.push("/practice");
+    try {
+      await api.deletePractice(id);
+      router.push("/practice");
+    } catch {
+      setError("Could not delete this session.");
+      setConfirmingDelete(false);
+    }
   }
 
   if (error) return <p className="text-red-700">{error}</p>;
@@ -153,10 +159,35 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
           <button onClick={save} disabled={saving} className="btn-primary flex-1 py-3">
             {saving ? "Saving…" : "Save changes"}
           </button>
-          <button onClick={remove} className="btn-ghost px-4 py-3 text-red-600">
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="btn-ghost px-4 py-3 text-red-600"
+          >
             Delete
           </button>
         </div>
+
+        {confirmingDelete && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+            <span className="text-sm text-red-700">
+              Permanently delete this practice session?
+            </span>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={remove}
+                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                className="btn-ghost px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </section>
       )}
     </div>
