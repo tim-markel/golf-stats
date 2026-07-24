@@ -1,6 +1,7 @@
 """Course endpoints: read the catalog, and add a course via the web scraper."""
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +13,10 @@ from ..schemas import Course, CourseDetail, CourseScrapeIn
 
 # Read-shared reference data; login required.
 router = APIRouter(prefix="/courses", tags=["courses"], dependencies=[Depends(current_account)])
+
+# Cost guard for the (paid) scrape endpoint: per-user hourly + a global daily
+# ceiling across all non-admins so the LLM/search bill can't be run up.
+_SCRAPE_DAILY_CAP = os.environ.get("SCRAPE_DAILY_CAP", "50")
 
 _COURSE_COLS = (
     "id, name, city, state, country, latitude, longitude, "
@@ -32,15 +37,18 @@ def list_courses():
 def scrape_course(body: CourseScrapeIn, actor: dict[str, Any] = Depends(acting_golfer)):
     """Web-search for a course and add it to the database via the scraper.
 
-    Expensive (web search + LLM). Non-admins may add up to 5 courses/hour;
-    admins are unlimited. Returns the newly added course.
+    Expensive (web search + LLM). Non-admins get 5/hour each and share a global
+    daily cap; admins are unlimited. Returns the newly added course.
     """
-    if not is_manager(actor) and not within_limit(
-        f"course-scrape:{actor['golfer_id']}", "5/hour"
-    ):
-        raise HTTPException(
-            429, "You can add up to 5 courses per hour. Please try again later."
-        )
+    if not is_manager(actor):
+        if not within_limit(f"course-scrape:{actor['golfer_id']}", "5/hour"):
+            raise HTTPException(
+                429, "You can add up to 5 courses per hour. Please try again later."
+            )
+        if not within_limit("course-scrape:global", f"{_SCRAPE_DAILY_CAP}/day"):
+            raise HTTPException(
+                429, "The daily course-adding limit was reached. Please try again tomorrow."
+            )
 
     # Lazy import so the API doesn't hard-depend on scraper packages at startup.
     from scraper.pipeline import ScrapeError, scrape_and_save

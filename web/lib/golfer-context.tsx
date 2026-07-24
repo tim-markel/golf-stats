@@ -20,7 +20,8 @@ interface GolferCtx {
   ready: boolean; // true once the initial session check has finished
   authGolfer: Golfer | null; // the real signed-in account (null when logged out)
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>; // sends a verification code
+  verifySignup: (email: string, code: string) => Promise<void>; // confirms the code, signs in
   setSession: (result: AuthResult) => Promise<void>;
   logout: () => void;
   viewAsNormal: boolean;
@@ -92,7 +93,12 @@ export function GolferProvider({ children }: { children: ReactNode }) {
   }
 
   async function signup(name: string, email: string, password: string) {
-    await setSession(await auth.signup({ name, email, password }));
+    // Emails a code; the account isn't created until verifySignup succeeds.
+    await auth.signup({ name, email, password });
+  }
+
+  async function verifySignup(email: string, code: string) {
+    await setSession(await auth.verifySignup({ email, code }));
   }
 
   function logout() {
@@ -185,6 +191,7 @@ export function GolferProvider({ children }: { children: ReactNode }) {
         authGolfer,
         login,
         signup,
+        verifySignup,
         setSession,
         logout,
         viewAsNormal,

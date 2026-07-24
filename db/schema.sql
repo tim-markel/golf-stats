@@ -120,6 +120,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS courses_norm_name_key
 CREATE UNIQUE INDEX IF NOT EXISTS golfers_single_super_admin
     ON golfers ((is_super_admin)) WHERE is_super_admin;
 
+-- pending email-verification signups (see db/migrations/006_email_verification.sql)
+CREATE TABLE IF NOT EXISTS email_verifications (
+    email         TEXT PRIMARY KEY,
+    name          TEXT        NOT NULL,
+    password_hash TEXT        NOT NULL,
+    code_hash     TEXT        NOT NULL,
+    attempts      SMALLINT    NOT NULL DEFAULT 0,
+    expires_at    TIMESTAMPTZ NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ---------------------------------------------------------------------------
 -- rounds  (one round of golf a golfer played at a course)
 -- ---------------------------------------------------------------------------

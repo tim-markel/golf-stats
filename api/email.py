@@ -41,6 +41,20 @@ def send_welcome_email(to: str, name: str) -> None:
     send_email(to, subject, body)
 
 
+def send_verification_email(to: str, name: str, code: str) -> None:
+    """Signup email-verification code."""
+    subject = "Your Bogey Book verification code"
+    body = (
+        f"Hi {name},\n\n"
+        f"Your Bogey Book verification code is:\n\n    {code}\n\n"
+        "Enter it in the app to finish creating your account. It expires in 10 "
+        "minutes. If you didn't request this, you can ignore this email.\n\n"
+        "The Bogey Book team\n\n"
+        "— You will never receive spam emails from us."
+    )
+    send_email(to, subject, body)
+
+
 def send_password_reset_email(to: str, name: str, reset_url: str) -> None:
     """Password-reset email with a link back to the app."""
     subject = "Reset your Bogey Book password"

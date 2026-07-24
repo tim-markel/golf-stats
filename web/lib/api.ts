@@ -477,8 +477,12 @@ async function authPostVoid(path: string, body: unknown): Promise<void> {
 }
 
 export const auth = {
+  // Starts signup: emails a 6-digit code. No session yet — call verifySignup.
   signup: (b: { name: string; email: string; password: string }) =>
-    authPost("/auth/signup", b),
+    authPostVoid("/auth/signup", b),
+  verifySignup: (b: { email: string; code: string }) =>
+    authPost("/auth/verify-signup", b),
+  resendCode: (email: string) => authPostVoid("/auth/resend-code", { email }),
   login: (b: { email: string; password: string }) => authPost("/auth/login", b),
   me: async (token: string): Promise<Golfer> => {
     const res = await fetch(`${API_URL}/auth/me`, {
