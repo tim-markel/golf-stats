@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 DrivingAccuracy = Literal["fairway", "left", "right", "short", "long"]
 ApproachAccuracy = Literal[
@@ -44,7 +44,7 @@ class CredentialsUpdate(BaseModel):
 
 class SignupIn(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     password: str
 
 
@@ -54,7 +54,7 @@ class VerifySignupIn(BaseModel):
 
 
 class ResendCodeIn(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class LoginIn(BaseModel):
