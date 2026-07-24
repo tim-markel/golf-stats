@@ -58,6 +58,23 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Impersonate-Golfer-Id"],
 )
 
+# Safe security headers on every API response (the API serves JSON, not pages,
+# so a CSP isn't needed here — the frontend carries that).
+_SECURITY_HEADERS = {
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    for key, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(key, value)
+    return response
+
 app.include_router(auth_router)
 app.include_router(golfers.router)
 app.include_router(courses.router)
