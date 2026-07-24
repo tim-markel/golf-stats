@@ -48,6 +48,15 @@ class SignupIn(BaseModel):
     password: str
 
 
+class VerifySignupIn(BaseModel):
+    email: str
+    code: str
+
+
+class ResendCodeIn(BaseModel):
+    email: str
+
+
 class LoginIn(BaseModel):
     email: str
     password: str

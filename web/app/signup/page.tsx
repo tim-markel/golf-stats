@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Yellowtail } from "next/font/google";
+import { auth } from "@/lib/api";
 import { useGolfer } from "@/lib/golfer-context";
 
 const logoFont = Yellowtail({ weight: "400", subsets: ["latin"], display: "swap" });
@@ -76,6 +77,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [codeSent, setCodeSent] = useState(false); // second step: enter the emailed code
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,12 +90,17 @@ export default function SignupPage() {
     setErr(null);
     try {
       const name = `${firstName.trim()} ${lastName.trim()}`.trim();
-      await signup(name, email.trim(), password);
-      // Shell redirects to Home once the account is created + signed in.
+      await signup(name, email.trim(), password); // emails a 6-digit code
+      setCodeSent(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Could not create your account");
+      setErr(e instanceof Error ? e.message : "Could not start signup");
+    } finally {
       setBusy(false);
     }
+  }
+
+  if (codeSent) {
+    return <VerifyCode email={email.trim()} onBack={() => setCodeSent(false)} />;
   }
 
   return (
@@ -173,6 +180,84 @@ export default function SignupPage() {
           Sign in
         </Link>
       </p>
+    </div>
+  );
+}
+
+// Step 2: enter the 6-digit code emailed to `email`.
+function VerifyCode({ email, onBack }: { email: string; onBack: () => void }) {
+  const { verifySignup } = useGolfer();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [resent, setResent] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || code.trim().length !== 6) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await verifySignup(email, code.trim());
+      // Shell redirects Home once the account is created + signed in.
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not verify the code");
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    setErr(null);
+    setResent(false);
+    try {
+      await auth.resendCode(email);
+      setResent(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not resend the code");
+    }
+  }
+
+  return (
+    <div className="card w-full max-w-sm p-6">
+      <div className="mb-5 text-center">
+        <div className="flex items-center justify-center gap-2 text-2xl">
+          <span>⛳</span>
+          <span className={`${logoFont.className} text-4xl leading-none`}>Bogey Book</span>
+        </div>
+        <p className="mt-1 text-sm text-gray-500">Verify your email</p>
+      </div>
+
+      <p className="mb-3 text-sm text-gray-600">
+        We emailed a 6-digit code to <span className="font-medium">{email}</span>. Enter
+        it below to finish creating your account.
+      </p>
+
+      <form onSubmit={submit} className="space-y-3">
+        <input
+          className="input text-center text-2xl tracking-[0.4em]"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          placeholder="000000"
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+          autoFocus
+        />
+        {err && <p className="text-sm text-red-600">{err}</p>}
+        {resent && <p className="text-sm text-fairway">A new code was sent.</p>}
+        <button className="btn-primary w-full" disabled={busy || code.length !== 6}>
+          {busy ? "Verifying…" : "Verify & create account"}
+        </button>
+      </form>
+
+      <div className="mt-4 flex items-center justify-between text-sm">
+        <button type="button" onClick={onBack} className="text-gray-500 underline">
+          ← Back
+        </button>
+        <button type="button" onClick={resend} className="font-medium text-fairway underline">
+          Resend code
+        </button>
+      </div>
     </div>
   );
 }
