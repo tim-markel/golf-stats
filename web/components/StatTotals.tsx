@@ -533,8 +533,8 @@ export default function StatTotals({
           {approachTile}
           {fairwaysTile}
           {scoreDistTile}
-          {holeScoreTile}
           {puttDistTile}
+          {holeScoreTile}
           {puttsScatter}
         </div>
       )}
