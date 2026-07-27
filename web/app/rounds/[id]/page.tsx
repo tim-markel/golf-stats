@@ -150,8 +150,7 @@ function Nine({
   const row = "border-b border-paper-line";
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] table-fixed text-center text-sm text-ink">
+    <table className="w-full min-w-[560px] table-fixed text-center text-sm text-ink">
         <colgroup>
           <col className="w-20" />
           {holes.map((h) => (
@@ -222,7 +221,6 @@ function Nine({
           </tr>
         </tbody>
       </table>
-    </div>
   );
 }
 
@@ -853,7 +851,9 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
             Tap a hole below to edit all its stats.
           </p>
         )}
-        <div className="space-y-2 p-2">
+        {/* single horizontal scroll so both nines move together and their
+            hole columns stay aligned */}
+        <div className="space-y-2 overflow-x-auto p-2">
           {front.length > 0 && (
             <Nine holes={front} label="Out" editing={editing} onHoleClick={setModalHoleId} />
           )}
