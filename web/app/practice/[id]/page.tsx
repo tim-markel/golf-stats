@@ -175,13 +175,13 @@ export default function PracticeSessionPage({ params }: { params: { id: string }
             <div className="ml-auto flex gap-2">
               <button
                 onClick={remove}
-                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
                 Delete
               </button>
               <button
                 onClick={() => setConfirmingDelete(false)}
-                className="btn-ghost px-3 py-1.5 text-sm"
+                className="btn-ghost px-3 py-2 text-sm"
               >
                 Cancel
               </button>

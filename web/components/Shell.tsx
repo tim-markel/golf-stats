@@ -7,6 +7,8 @@ import { Yellowtail } from "next/font/google";
 import { useGolfer } from "@/lib/golfer-context";
 import NormalViewBadge from "@/components/NormalViewBadge";
 import HeaderMenu from "@/components/HeaderMenu";
+import MobileNav from "@/components/MobileNav";
+import { NAV_LINKS } from "@/lib/nav";
 
 const logoFont = Yellowtail({ weight: "400", subsets: ["latin"], display: "swap" });
 
@@ -55,29 +57,24 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <nav className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex flex-none items-center gap-2">
             <span className="text-xl">⛳</span>
-            <span className={`${logoFont.className} whitespace-nowrap text-3xl leading-none`}>
+            <span className={`${logoFont.className} whitespace-nowrap text-2xl leading-none sm:text-3xl`}>
               Bogey Book
             </span>
           </Link>
           <div className="flex items-center gap-2 text-sm">
-            <Link href="/" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-              Home
-            </Link>
-            <Link href="/rounds/new" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-              New Round
-            </Link>
-            <Link href="/practice" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-              Practice
-            </Link>
-            <Link href="/explore" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-              Explore
-            </Link>
-            <Link href="/leaderboard" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-              Leaderboard
-            </Link>
-            <Link href="/about" className="rounded-lg px-3 py-1.5 hover:bg-white/15">
-              About
-            </Link>
+            {/* Desktop: inline links. Mobile: collapsed into the hamburger. */}
+            <div className="hidden items-center gap-1 md:flex">
+              {NAV_LINKS.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className="rounded-lg px-3 py-1.5 hover:bg-white/15"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+            <MobileNav />
             <HeaderMenu />
           </div>
         </nav>
@@ -87,27 +84,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t border-black/10 bg-[#d3e4d7]">
         <nav className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-5 text-xs">
-          <Link href="/" className="text-fairway-dark underline hover:text-fairway">
-            Home
-          </Link>
-          <Link href="/rounds/new" className="text-fairway-dark underline hover:text-fairway">
-            New Round
-          </Link>
-          <Link href="/practice" className="text-fairway-dark underline hover:text-fairway">
-            Practice
-          </Link>
-          <Link href="/explore" className="text-fairway-dark underline hover:text-fairway">
-            Explore
-          </Link>
-          <Link href="/leaderboard" className="text-fairway-dark underline hover:text-fairway">
-            Leaderboard
-          </Link>
-          <Link href="/about" className="text-fairway-dark underline hover:text-fairway">
-            About
-          </Link>
-          <Link href="/settings" className="text-fairway-dark underline hover:text-fairway">
-            Settings
-          </Link>
+          {[...NAV_LINKS, { href: "/settings", label: "Settings" }].map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="text-fairway-dark underline hover:text-fairway"
+            >
+              {l.label}
+            </Link>
+          ))}
         </nav>
       </footer>
 

@@ -23,7 +23,7 @@ export default function NormalViewBadge() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-20 right-4 z-50">
       {open && (
         <div className="mb-2 w-60 rounded-xl border border-black/10 bg-white p-3 text-gray-900 shadow-lg">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">

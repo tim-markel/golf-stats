@@ -441,7 +441,7 @@ export default function NewRoundPage() {
       </div>
 
       <div className="card space-y-4 p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <ScorePicker
               par={hole.par}
@@ -449,12 +449,12 @@ export default function NewRoundPage() {
               onChange={(v) => patch(current, { score: v })}
             />
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               disabled={current === 0}
               onClick={() => setCurrent((c) => c - 1)}
-              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-40"
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2.5 text-xs font-medium text-gray-700 disabled:opacity-40 sm:flex-none"
             >
               Prev Hole
             </button>
@@ -462,7 +462,7 @@ export default function NewRoundPage() {
               type="button"
               disabled={s.score == null || submitting}
               onClick={isLast ? submit : goNext}
-              className="rounded-md border border-fairway bg-fairway px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+              className="flex-1 rounded-md border border-fairway bg-fairway px-3 py-2.5 text-xs font-medium text-white disabled:opacity-40 sm:flex-none"
             >
               {isLast ? (submitting ? "Saving…" : "Save & Finish") : "Next Hole"}
             </button>

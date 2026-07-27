@@ -209,7 +209,7 @@ function Nine({
                     type="button"
                     onClick={() => onHoleClick(h.hole_id)}
                     title={`Edit hole ${h.hole_number}`}
-                    className="mx-auto flex h-8 w-9 items-center justify-center rounded border border-fairway/40 bg-white hover:bg-fairway-light"
+                    className="mx-auto flex h-9 w-9 items-center justify-center rounded border border-fairway/40 bg-white hover:bg-fairway-light"
                   >
                     <ScoreMark score={h.score} par={h.par} />
                   </button>
@@ -396,23 +396,23 @@ function HoleEditCard({
               <button
                 onClick={() => saveAnd(onPrev)}
                 disabled={saving || !hasPrev}
-                className="btn-ghost px-2 py-1 disabled:opacity-40"
+                className="btn-ghost px-3 py-2 disabled:opacity-40"
               >
                 ← Prev
               </button>
               <button
                 onClick={() => saveAnd(onNext)}
                 disabled={saving || !hasNext}
-                className="btn-ghost px-2 py-1 disabled:opacity-40"
+                className="btn-ghost px-3 py-2 disabled:opacity-40"
               >
                 Next →
               </button>
             </>
           )}
-          <button onClick={() => saveAnd()} disabled={saving} className="btn-primary px-3 py-1">
+          <button onClick={() => saveAnd()} disabled={saving} className="btn-primary px-3 py-2">
             {saving ? "Saving…" : "Save"}
           </button>
-          <button onClick={onCancel} className="btn-ghost px-3 py-1">
+          <button onClick={onCancel} className="btn-ghost px-3 py-2">
             {navigable ? "Done" : "Cancel"}
           </button>
         </div>
@@ -796,7 +796,7 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
                 {round.time_of_day ? ` · ${round.time_of_day}` : ""}
               </p>
               {canEdit && (
-                <button onClick={startMetaEdit} className="btn-ghost px-2 py-0.5 text-xs">
+                <button onClick={startMetaEdit} className="btn-ghost px-3 py-1.5 text-xs">
                   Edit
                 </button>
               )}

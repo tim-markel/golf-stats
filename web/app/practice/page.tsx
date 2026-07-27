@@ -37,8 +37,8 @@ function RatingBar({ good, medium, bad }: { good: number; medium: number; bad: n
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card p-4 text-center">
-      <div className="text-2xl font-bold text-fairway">{value}</div>
+    <div className="card p-3 text-center sm:p-4">
+      <div className="text-xl font-bold text-fairway sm:text-2xl">{value}</div>
       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
     </div>
   );
@@ -134,7 +134,7 @@ export default function PracticePage() {
       </div>
 
       {/* summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <StatTile label="Sessions" value={String(sessions.length)} />
         <StatTile label="Num Range Balls" value={String(summary.rangeBalls)} />
         <StatTile label="Total Time" value={fmtTime(summary.totalTime)} />

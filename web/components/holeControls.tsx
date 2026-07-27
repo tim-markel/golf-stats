@@ -53,7 +53,7 @@ export function scoreMark(score: number, par: number, big = false) {
 
 // smaller circle button for the numeric count selectors
 const numBtn = (active: boolean) =>
-  `flex h-8 w-8 items-center justify-center rounded-full border text-sm ${
+  `flex h-10 w-10 items-center justify-center rounded-full border text-sm ${
     active
       ? "border-fairway bg-fairway text-white"
       : "border-gray-300 bg-white text-gray-700"

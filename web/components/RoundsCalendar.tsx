@@ -70,7 +70,7 @@ export default function RoundsCalendar({
     now.getFullYear() === ym.y && now.getMonth() === ym.m ? now.getDate() : -1;
 
   const arrow =
-    "flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100";
+    "flex h-9 w-9 items-center justify-center rounded text-gray-500 hover:bg-gray-100";
 
   return (
     <section className="card">
@@ -123,7 +123,7 @@ export default function RoundsCalendar({
                 <div className="group relative">
                   <Link
                     href={`/rounds/${dayRounds[0].round_id}`}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-fairway text-[11px] font-semibold text-white hover:brightness-110"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-fairway text-[11px] font-semibold text-white hover:brightness-110"
                   >
                     {day}
                   </Link>
@@ -144,7 +144,7 @@ export default function RoundsCalendar({
                 <div className="group relative">
                   <Link
                     href="/practice"
-                    className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white hover:brightness-110"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-semibold text-white hover:brightness-110"
                     style={{ background: "#69b58c" }}
                   >
                     {day}
