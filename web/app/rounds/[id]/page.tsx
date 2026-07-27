@@ -236,7 +236,7 @@ function Mini({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function HoleCard({ h }: { h: ScorecardHole }) {
+function HoleCard({ h, className = "" }: { h: ScorecardHole; className?: string }) {
   const term = scoreTerm(h.score, h.par);
   const played = h.score != null;
 
@@ -261,7 +261,7 @@ function HoleCard({ h }: { h: ScorecardHole }) {
     );
 
   return (
-    <div className="card overflow-hidden text-ink">
+    <div className={`card overflow-hidden text-ink ${className}`}>
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-sm">
         <span className="font-bold">Hole {h.hole_number}</span>
         <span className="text-gray-400">Par {h.par}</span>
@@ -577,6 +577,9 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [modalHoleId, setModalHoleId] = useState<number | null>(null);
+  // On phones the read-only hole-by-hole grid shows only the first few holes
+  // until expanded; desktop always shows them all.
+  const [holesExpanded, setHolesExpanded] = useState(false);
 
   // round metadata (date / tees / time of day) editing
   const [metaEditing, setMetaEditing] = useState(false);
@@ -864,10 +867,27 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       <section>
         <h2 className="mb-2 font-semibold">Hole by hole</h2>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-          {round.holes.map((h) => (
-            <HoleCard key={h.hole_id} h={h} />
+          {round.holes.map((h, i) => (
+            // Beyond the first 4, hide on phones until expanded; always show
+            // from sm up (`sm:block` keeps them in the grid on larger screens).
+            <HoleCard
+              key={h.hole_id}
+              h={h}
+              className={i >= 4 && !holesExpanded ? "hidden sm:block" : ""}
+            />
           ))}
         </div>
+        {round.holes.length > 4 && (
+          <button
+            onClick={() => setHolesExpanded((v) => !v)}
+            className="btn-ghost mt-2 w-full py-2 text-sm sm:hidden"
+            aria-expanded={holesExpanded}
+          >
+            {holesExpanded
+              ? "Show less ▴"
+              : `Show all ${round.holes.length} holes ▾`}
+          </button>
+        )}
       </section>
 
       <StatTotals title="Round totals" data={totalsData} />
