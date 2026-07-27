@@ -201,9 +201,21 @@ export function GirControl({
       {gir === false && (
         <div className="mt-2">
           <div className="mb-1 text-xs font-medium text-gray-500">Up &amp; down</div>
-          <div className="flex gap-1.5">
-            <button type="button" onClick={() => onUpDown(upDown === true ? null : true)} className={padBtn(upDown === true)}>✓</button>
-            <button type="button" onClick={() => onUpDown(upDown === false ? null : false)} className={padBtn(upDown === false, "bad")}>✗</button>
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => onUpDown(true)} className={padBtn(upDown === true)}>✓</button>
+            <button type="button" onClick={() => onUpDown(false)} className={padBtn(upDown === false, "bad")}>✗</button>
+            {/* N/A → null: not counted toward up-and-down % (default) */}
+            <button
+              type="button"
+              onClick={() => onUpDown(null)}
+              className={`flex h-10 items-center justify-center rounded-full border px-3 text-sm font-medium ${
+                upDown === null
+                  ? "border-gray-400 bg-gray-200 text-gray-700"
+                  : "border-gray-300 bg-white text-gray-500"
+              }`}
+            >
+              N/A
+            </button>
           </div>
         </div>
       )}
