@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   api,
   ApproachAccuracy,
@@ -578,6 +578,15 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
   // On phones the read-only hole-by-hole grid shows only the first few holes
   // until expanded; desktop always shows them all.
   const [holesExpanded, setHolesExpanded] = useState(false);
+  const holesSectionRef = useRef<HTMLElement>(null);
+
+  // Collapsing from the bottom would strand the viewport at the page end, so
+  // scroll back up to the section heading. (The heading sits above the holes,
+  // so its position is stable even as the holes below it disappear.)
+  function collapseHoles() {
+    setHolesExpanded(false);
+    holesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   // round metadata (date / tees / time of day) editing
   const [metaEditing, setMetaEditing] = useState(false);
@@ -864,8 +873,19 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
       </section>
 
       {/* hole-by-hole cards: read-only summary */}
-      <section>
-        <h2 className="mb-2 font-semibold">Hole by hole</h2>
+      <section ref={holesSectionRef} className="scroll-mt-20">
+        <div className="mb-2 flex items-baseline gap-2">
+          <h2 className="font-semibold">Hole by hole</h2>
+          {round.holes.length > 4 && !holesExpanded && (
+            <button
+              onClick={() => setHolesExpanded(true)}
+              className="text-xs font-medium text-fairway underline hover:text-fairway-dark sm:hidden"
+              aria-expanded={false}
+            >
+              Show all {round.holes.length} ▾
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           {round.holes.map((h, i) => (
             // Beyond the first 4, hide on phones until expanded; always show
@@ -877,15 +897,13 @@ export default function RoundScorecardPage({ params }: { params: { id: string } 
             />
           ))}
         </div>
-        {round.holes.length > 4 && (
+        {round.holes.length > 4 && holesExpanded && (
           <button
-            onClick={() => setHolesExpanded((v) => !v)}
-            className="btn-ghost mt-2 w-full py-2 text-sm sm:hidden"
-            aria-expanded={holesExpanded}
+            onClick={collapseHoles}
+            className="mt-2 w-full py-2 text-xs font-medium text-fairway underline hover:text-fairway-dark sm:hidden"
+            aria-expanded
           >
-            {holesExpanded
-              ? "Show less ▴"
-              : `Show all ${round.holes.length} holes ▾`}
+            Show less ▴
           </button>
         )}
       </section>
