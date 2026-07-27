@@ -136,7 +136,7 @@ export default function SettingsPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
+              className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                 activeTab === t.id
                   ? "border-fairway text-fairway"
                   : "border-transparent text-gray-500 hover:text-gray-800"
@@ -550,7 +550,7 @@ function CreateGolfer({
               type="button"
               onClick={() => setShowPassword((s) => !s)}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700"
+              className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center text-gray-400 hover:text-gray-700"
             >
               {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
@@ -610,7 +610,7 @@ function UserRow({
 
   return (
     <li className="py-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <span className="font-medium">{g.name}</span>
           {isYou && <span className="ml-2 text-xs text-gray-400">(you)</span>}
@@ -620,10 +620,10 @@ function UserRow({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {showViewAsNormal && (
             <>
-              <button onClick={onViewAsNormal} className="btn-ghost px-2.5 py-1 text-xs">
+              <button onClick={onViewAsNormal} className="btn-ghost px-3 py-2 text-xs">
                 View as Normal
               </button>
               <ImpersonateMenu
@@ -642,7 +642,7 @@ function UserRow({
               }}
               aria-label={`Manage ${g.name}`}
               aria-expanded={open}
-              className={`p-1 transition ${
+              className={`inline-flex h-10 w-10 items-center justify-center transition ${
                 open ? "text-fairway" : "text-gray-500 hover:text-fairway"
               }`}
             >
@@ -744,7 +744,7 @@ function ImpersonateMenu({
           setQ("");
         }}
         aria-expanded={open}
-        className="btn-ghost px-2.5 py-1 text-xs"
+        className="btn-ghost px-3 py-2 text-xs"
       >
         Impersonate Golfer
       </button>

@@ -223,7 +223,7 @@ export default function ExplorePage() {
               <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/rounds/new?course=${detail.id}`}
-                  className="btn-primary px-3 py-1.5 text-sm"
+                  className="btn-primary px-3 py-2 text-sm"
                 >
                   ⛳ New Round
                 </Link>
@@ -232,7 +232,7 @@ export default function ExplorePage() {
                     href={detail.booking_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-ghost px-3 py-1.5 text-sm"
+                    className="btn-ghost px-3 py-2 text-sm"
                   >
                     Book tee time ↗
                   </a>
@@ -242,7 +242,7 @@ export default function ExplorePage() {
                     href={detail.website}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-ghost px-3 py-1.5 text-sm"
+                    className="btn-ghost px-3 py-2 text-sm"
                   >
                     Website ↗
                   </a>
@@ -250,7 +250,7 @@ export default function ExplorePage() {
                 {detail.phone && (
                   <a
                     href={`tel:${detail.phone}`}
-                    className="btn-ghost px-3 py-1.5 text-sm"
+                    className="btn-ghost px-3 py-2 text-sm"
                   >
                     {detail.phone}
                   </a>

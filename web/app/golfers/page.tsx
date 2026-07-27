@@ -70,18 +70,18 @@ export default function GolfersPage() {
 
       <form onSubmit={addGolfer} className="flex flex-wrap gap-2">
         <input
-          className="input flex-1"
+          className="input w-full sm:flex-1"
           placeholder="Golfer name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <input
-          className="input w-28 flex-none"
+          className="input flex-1 sm:w-28 sm:flex-none"
           placeholder="Handicap"
           value={handicap}
           onChange={(e) => setHandicap(e.target.value)}
         />
-        <button className="btn-primary">Add golfer</button>
+        <button className="btn-primary w-full sm:w-auto">Add golfer</button>
       </form>
 
       {loading ? (

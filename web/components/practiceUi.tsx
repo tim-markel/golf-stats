@@ -90,7 +90,7 @@ export function RatingButtons({
             key={r.key}
             type="button"
             onClick={() => onChange(value === r.key ? null : r.key)}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+            className={`rounded-lg border px-3 py-2 text-sm font-medium ${
               colored ? r.on : "border-gray-300 bg-white text-gray-700"
             }`}
           >

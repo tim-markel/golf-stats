@@ -92,7 +92,7 @@ function StatCard({
         {info && <span className="ml-0.5 text-gray-400">ⓘ</span>}
       </div>
       {info && (
-        <div className="pointer-events-none absolute top-full left-1/2 z-30 mt-2 hidden w-60 -translate-x-1/2 rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal normal-case leading-snug text-gray-600 shadow-card group-hover:block">
+        <div className="pointer-events-none absolute top-full left-1/2 z-30 mt-2 hidden w-56 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-black/10 bg-white p-2.5 text-left text-xs font-normal normal-case leading-snug text-gray-600 shadow-card group-hover:block">
           {info}
         </div>
       )}
